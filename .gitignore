@@ -1,0 +1,21 @@
+# Persönliche Datein die wir ausschließen möchten:
+.git/
+.obsidian/
+
+# Standard R project files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Daten (können mit den Skripts selbst erstellt werden -> Ordner Struktur identisch)
+Data/Rohdaten/
+Data/database_blast_BLOSUM62/
+Data/database_blast_BLOSUM80/
+Data/database_blast_PAM30/
+Data/datebase_blast_top1000/
+Data/logs_BLOSUM62/
+Data/logs_BLOSUM80/
+Data/logs_PAM30/
+Data/logs_top1000/
+
