@@ -1,33 +1,72 @@
-# multiple_sequence_alignment.R
-# Performs Multiple Sequence Alignment (MSA) using ClustalW.
-
-library(msa)
+# Library and Settings ----
+rm(list = ls())
 library(Biostrings)
-# library(ggmsa) # Optional for visualization
+library(msa)
+library(readr)
+library(stringr)
+library(ggmsa)
 
-# 1. Load the sequences extracted from the BLAST step
-sequences <- readAAStringSet("top30_sequences.fasta")
 
-# 2. Perform MSA
-# Method: ClustalW as per instructions
-print("Running ClustalW alignment...")
-my_msa <- msa(sequences, method = "ClustalW")
+# Select Working Directory ----
+wds <- data.frame(
+  system = c("Julian Windows PC/Laptop", 
+             "Linux Uni",
+             "Johann ...",
+             "Rphi ..."),
+  path = c("C:/Users/julia/OneDrive/Integrated Life Siences/Genomanalysen und Phylogenie/Projektarbeit",
+           "/home/stud/ha24vepa/Documents/Bash_Linux_Introduction_supplements/Genom_und_Phylogenie_kurs/...",
+           "Johann:Copy paste dein Working directory",
+           "Rphi: Copy paste dein Working directory"),
+  stringsAsFactors = FALSE
+)
+for (i in seq_len(nrow(wds))) {
+  if (dir.exists(wds$path[i])) {
+    setwd(wds$path[i])
+    message("Working Directory set for ", wds$system[i])
+    break
+  } else {
+    message("Path for ", wds$system[i], " not found.")
+  }
+}
+rm(wds, i)
 
-print(my_msa)
+# ==== 1. Sequenzen & Metadaten Laden & Vorbereiten ====
 
-# 3. Save the alignment
-# Converting to a standard format (e.g., FASTA) allows other tools to use it
-# We can also save the msa object itself for R
-saveRDS(my_msa, "msa_result.rds")
+seqs <- readAAStringSet("Results_MultibleSequenceAlign/top30_sequences.fasta")
+meta <- read_csv("Results_BLAST/top30_pam30_annotated.csv", show_col_types = FALSE)
 
-# Export to FASTA for external viewers or subsequent steps if needed
-# msaPrettyPrint output can be complex, but for simple export:
-unmasked_alignment <- unmasked(my_msa)
-writeXStringSet(unmasked_alignment, "msa_alignment.fasta")
+names(seqs) <- meta |>
+  filter(Accession_ID %in% names(seqs)) |>
+  mutate(label = str_replace_all(Organism, " ", "_"),
+         label = paste(label, Accession_ID, sep = "_")) |>
+  pull(label)
 
-print("MSA completed and saved to 'msa_alignment.fasta' and 'msa_result.rds'")
+# ==== 2. Multiple Sequence Alignment (MSA) durchführen ====
 
-# 4. Visualization (Optional)
-# if(require(ggmsa)) {
-#   ggmsa(unmasked_alignment, start = 1, end = 50, color = "Chemistry_AA")
-# }
+message("Starte Multiple Sequence Alignment mit ClustalW...")
+
+msa_res <- msa(seqs, method = "ClustalW")
+# Kurze Vorschau in der Konsole
+msa_res
+
+# ==== 3. Ergebnisse Exportieren & Speichern ====
+
+writeXStringSet(unmasked(msa_res),
+                "Results_MultibleSequenceAlign/msa_alignment.fasta")
+saveRDS(msa_res,
+        "Results_MultibleSequenceAlign/msa_result.rds")
+
+# ==== 4. Visualisierung des Alignments ====
+
+# ggmsa ist nicht so easy man muss das iwi konvertieren, frag nicht wieso,
+# Die ergebnisse daraus sind eh hesslich also würd ich schauen ob es ein extenres 
+# tol gibt mit dem wir das schön machen
+
+ggmsa(unmasked(msa_res),
+      start = 1,
+      end = 100,
+      font = NULL, # Font NULL beschleunigt das Rendering bei vielen Sequenzen sieht aber besser aus ohne
+      color = "Chemistry_AA") +
+  geom_seqlogo() +
+  theme(axis.text.y = element_text(size = 8)) # Beschriftung etwas kleiner
+
