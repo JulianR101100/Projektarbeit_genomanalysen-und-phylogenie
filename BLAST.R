@@ -2,7 +2,7 @@
 rm(list = ls())
 library(ggplot2)
 # library("tidyverse")
-# library(Biostrings)
+library(Biostrings)
 library(seqinr)
 library(ordinal)
 library(dplyr)
@@ -186,19 +186,23 @@ print(plot_bitscore_significance(annotated_blast_results))
 
 # ==== Analyse zur Wahl der Substitutionsmatrix (BLOSUM62 vs BLOSUM80 vs PAM30) ====
 
-# 1. Daten Import der anderen Blast Ergebnisse
-
-
-
-
-# 2. Berechnung der durchschnittlichen Identität (basierend auf BLOSUM62 Standard)
+# Berechnung der durchschnittlichen Identität (basierend auf BLOSUM62 Standard)
 # Wir betrachten die Top-Treffer (ähnlich zu unserer Auswahl für die Phylogenie),
 # da diese die Signale sind, die wir optimal auflösen wollen.
 mean_identity_all <- mean(blast_data_62$Percent_identity)
 target_identity <- mean(head(blast_data_62$Percent_identity, 30))
 
-message("Durchschnittliche Identität (Alle Hits BLOSUM62): ", round(mean_identity_all, 2), "%")
-message("Durchschnittliche Identität (Top 30 Hits BLOSUM62): ", round(mean_identity_top30, 2), "%")
+message("Durchschnittliche Identität (Alle Hits):
+        \nBlosum62: ", round(mean_identity_all, 2), 
+        " %\nBlosum80: ", round(mean(blast_data_80$Percent_identity), 2), 
+        " %\nPalm30: ", round(mean(blast_data_30$Percent_identity), 2), "%" )
+
+message("Durchschnittliche Identität (Top 30 Hits):
+        \nBlosum62: ", round(target_identity, 2), 
+        " %\nBlosum80: ", round(mean(head(blast_data_80$Percent_identity, 30)), 2), 
+        " %\nPalm30: ", round(mean(head(blast_data_30$Percent_identity, 30)), 2), "%" )
+
+
 
 # 3. Entscheidungshilfe / Logik
 # Theorie:
@@ -209,13 +213,71 @@ message("Durchschnittliche Identität (Top 30 Hits BLOSUM62): ", round(mean_iden
 target_identity
 
 
-# 4. Vergleich der Bit-Scores für den Top-Hit (als Validierung)
-# Wenn die Matrix besser zum Alignment passt, sollte der Bit-Score (Information content) steigen.
-# Annahme: Der erste Hit ist der gleiche (z.B. Homo sapiens Query self-hit oder Top Ortholog)
+# 4. Vergleich der Bit-Scores für die Top 30 Hits (ohne Self-Hit)
+# Wissenschaftlich saubere Validierung: Wir ignorieren den Self-Hit (Platz 1),
+# dieser gewinnt bei strengen Matrizen trivialerweise immer
+# Stattdessen vergleichen wir die Hits 2 bis 30 (echte Orthologe).
+# Die Matrix, die hier den höchsten Bit-Score liefert, modelliert die biologische Variation am besten.
 
-score_62 <- head(blast_data_62$Bit_score, 1)
-score_80 <- head(blast_data_80$Bit_score, 1)
-score_30 <- head(blast_data_30$Bit_score, 1)
-message("BLOSUM62: ", score_62)
-message("BLOSUM80: ", score_80)
-message("PAM30:    ", score_30)
+get_mean_bitscore_top30 <- function(df) {
+  # Wir nehmen Zeile 2 bis 30 (oder weniger, falls weniger Treffer existieren)
+  n <- min(nrow(df), 30)
+  return(mean(df$Bit_score[2:n]))
+}
+
+score_62_robust <- get_mean_bitscore_top30(blast_data_62)
+score_80_robust <- get_mean_bitscore_top30(blast_data_80)
+score_30_robust <- get_mean_bitscore_top30(blast_data_30)
+
+message("Durchschnittlicher Bit-Score (Hits 2-30):",
+        "\nBLOSUM62: ", round(score_62_robust, 2),
+        "\nBLOSUM80: ", round(score_80_robust, 2),
+        "\nPAM30:    ", round(score_30_robust, 2))
+
+# PAM30 gewinnt!
+# ==== Speichern der Top30 mit gewählter Substitutionsmatrix (PAM30) ====
+# 1. Anotieren der PAM30 Ergebnisse
+pam30_annotated <- annotate_blast_results(
+  blast_results = blast_data_30,
+  e_value_threshold = 1e-155,
+  create_csv = FALSE
+)
+
+# 2. Top 30 selektieren
+top30_pam30 <- head(pam30_annotated, 30)
+
+# 3. Speichern der CSV
+csv_output_path <- "Results_BLAST/top30_pam30_annotated.csv"
+write_csv(top30_pam30, csv_output_path)
+message("Top 30 PAM30 Ergebnisse gespeichert in: ", csv_output_path)
+
+# 4. Sequenzen extrahieren und als FASTA speichern Extrahiere Sequenzen für MSA...
+
+db_sequences <- readAAStringSet("Data/Rohdaten/database.fasta")
+
+# Die Accession_IDs aus unseren Top 30 extrahieren
+# Hinweis: Die Accession_ID im Dataframe (z.B. "9606_0:0048f7") muss exakt mit dem Namen im AAStringSet übereinstimmen.
+# Die BLAST-Ergebnisse haben oft nur den ersten Teil vor dem Leerzeichen als ID, aber readAAStringSet liest den ganzen Header.
+# Wir müssen sicherstellen, dass wir die richtigen Sequenzen finden.
+
+# Wir bereinigen die Namen in db_sequences, damit sie matchen
+# (Analog zur Logik in annotate_blast_results: ID ist das erste Wort)
+names(db_sequences) <- word(names(db_sequences), 1)
+
+# Filtern: Nur Sequenzen behalten, deren Name in unserer Top30 Liste ist
+# Wir nutzen match, um auch die Reihenfolge beizubehalten (optional, aber nett)
+target_ids <- top30_pam30$Accession_ID
+matched_indices <- match(target_ids, names(db_sequences))
+
+# Checken ob alle gefunden wurden
+if(any(is.na(matched_indices))) {
+  warning("Achtung: Nicht alle Top 30 IDs wurden in der Datenbank gefunden!")
+}
+
+top30_seqs_final <- db_sequences[na.omit(matched_indices)]
+
+# Speichern
+fasta_output_path <- "Results_MultibleSequenceAlign/top30_sequences.fasta"
+writeXStringSet(top30_seqs_final, fasta_output_path)
+message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
+

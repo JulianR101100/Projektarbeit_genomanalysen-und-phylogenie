@@ -9,8 +9,10 @@
 .Ruserdata
 
 # Daten (können mit den Skripts selbst erstellt werden -> Ordner Struktur identisch)
-Data/Rohdaten/database.fasta
-Data/Rohdaten/query_sequence.fasta
+Data/Rohdaten/database.fasta 
+# Original Datenbank
+Data/Rohdaten/query_sequence.fasta 
+# Original Abfrage Sequenz
 Data/database_blast_BLOSUM62/
 Data/database_blast_BLOSUM80/
 Data/database_blast_PAM30/
