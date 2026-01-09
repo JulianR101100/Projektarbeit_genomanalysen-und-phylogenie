@@ -19,7 +19,7 @@ wds <- data.frame(
   path = c("C:/Users/julia/OneDrive/Integrated Life Siences/Genomanalysen und Phylogenie/Projektarbeit",
            "/home/stud/ha24vepa/Documents/Bash_Linux_Introduction_supplements/Genom_und_Phylogenie_kurs/...",
            "C:/Users/johan/Uni/Genomanalyse_Projekt",
-           "Rphi: Copy paste dein Working directory"),
+           "Raphi: Copy paste dein Working directory"),
   stringsAsFactors = FALSE
 )
 for (i in seq_len(nrow(wds))) {
