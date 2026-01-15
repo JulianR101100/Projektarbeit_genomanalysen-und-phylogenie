@@ -1,0 +1,7 @@
+Ultrametrie-Eigenschaftsprüfung:
+Tests: 4060 
+Verletzungen: 3502 
+
+Robustheit des UPGMA Baums:
+Wahrheit (Truth): FALSE 
+Geschätztes Rho (Est Rho): 63.64526 

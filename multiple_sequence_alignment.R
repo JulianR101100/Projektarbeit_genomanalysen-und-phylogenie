@@ -5,6 +5,8 @@ library(msa)
 library(readr)
 library(stringr)
 library(ggmsa)
+library(dplyr) 
+library(stringr)
 
 
 # Select Working Directory ----
@@ -34,11 +36,20 @@ rm(wds, i)
 seqs <- readAAStringSet("Results_MultibleSequenceAlign/top30_sequences.fasta")
 meta <- read_csv("Results_BLAST/top30_pam30_annotated.csv", show_col_types = FALSE)
 
-names(seqs) <- meta |>
-  filter(Accession_ID %in% names(seqs)) |>
+# Robust renaming: Ensure the order of metadata matches the order of sequences
+# Create the new labels in the metadata
+meta <- meta |>
   mutate(label = str_replace_all(Organism, " ", "_"),
-         label = paste(label, Accession_ID, sep = "_")) |>
-  pull(label)
+         label = paste(label, Accession_ID, sep = "_"))
+
+# Match the metadata to the sequences based on Accession_ID (which are the current names of seqs)
+match_indices <- match(names(seqs), meta$Accession_ID)
+
+# Assign new names only if a match is found (should be for all)
+if(any(is.na(match_indices))) {
+  warning("Some sequences could not be matched to metadata!")
+}
+names(seqs) <- meta$label[match_indices]
 
 # ==== 2. Multiple Sequence Alignment (MSA) durchführen ====
 

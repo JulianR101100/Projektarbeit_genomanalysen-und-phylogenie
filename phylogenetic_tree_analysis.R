@@ -1,19 +1,22 @@
 # Library and Settings ----
 rm(list = ls())
-library(ggplot2)
-library(Biostrings)
-library(dplyr)
-library(stringr)
+library(Biostrings) 
+library(seqinr)
+library(pwalign)
+library(gplots) 
+library(ape)
+library(dendextend)
+library(phytools)
 library(msa)
-library(ggmsa)
-
+library(readr)
+library(stringr)
 
 # Select Working Directory ----
 wds <- data.frame(
   system = c("Julian Windows PC/Laptop", 
              "Linux Uni",
-             "Johann ...",
-             "Rphi ..."),
+             "Johann",
+             "Rphi"),
   path = c("C:/Users/julia/OneDrive/Integrated Life Siences/Genomanalysen und Phylogenie/Projektarbeit",
            "/home/stud/ha24vepa/Documents/Bash_Linux_Introduction_supplements/Genom_und_Phylogenie_kurs/...",
            "C:/Users/johan/Uni/Genomanalyse_Projekt/Projektarbeit",
@@ -30,7 +33,155 @@ for (i in seq_len(nrow(wds))) {
   }
 }
 rm(wds, i)
+# ==== 1. Distanzberechnungen ====
+
+# MSA laden und konvertieren
+alignment_biostrings <- readAAMultipleAlignment("Results_MultibleSequenceAlign/msa_alignment.fasta", format = "fasta")
+alignment_align <- msaConvert(alignment_biostrings, type = "seqinr::alignment")
+
+# Distanzmatrix (Identität) berechnen
+dist_msa <- dist.alignment(alignment_align, matrix = "identity")
+dist_matrix <- as.matrix(dist_msa)
+dist_matrix_sq <- dist_matrix^2
+
+# Heatmap speichern
+pdf("Results_PhylogeneticTree/Distance_Heatmap.pdf", width = 12, height = 12)
+heatmap.2(dist_matrix_sq,
+          trace = "none",
+          col = rev(hcl.colors(100, palette = "heat")),
+          margins = c(12, 12),
+          cexRow = 0.5,
+          cexCol = 0.5,
+          dendrogram = "none",
+          key = TRUE,
+          denscol="black",
+          densadj = 0.25,
+          main = "Distanzmatrix Heatmap (Identität^2)")
+dev.off()
+message("Distanz-Heatmap gespeichert: Results_PhylogeneticTree/Distance_Heatmap.pdf")
+
+# ==== 2. Ultrametrie und Hierarchisches Clustering ====
+
+message("Prüfe Ultrametrie-Eigenschaft...")
+
+# Funktion: Strikte Ultrametrie prüfen
+check_strict_ultrametric_property <- function(dist_matrix, tol = 1e-12) {
+  points <- rownames(dist_matrix)
+  combinations <- combn(points, 3)
+  
+  tests <- 0
+  violations <- 0
+  violating_triplets <- character(0)
+  
+  for (i in 1:ncol(combinations)) {
+    comb <- combinations[, i]
+    A <- comb[1]; B <- comb[2]; C <- comb[3]
+    
+    d_AB <- dist_matrix[A, B]
+    d_AC <- dist_matrix[A, C]
+    d_BC <- dist_matrix[B, C]
+    
+    tests <- tests + 1
+    d <- sort(c(d_AB, d_AC, d_BC))
+    d1 <- d[1]; d2 <- d[2]; d3 <- d[3]
+    
+    # Kriterium: Die zwei größten Distanzen müssen gleich sein
+    is_strict_ultra <- (abs(d3 - d2) <= tol) && (d2 > d1 + tol)
+    
+    if (!is_strict_ultra) {
+      violations <- violations + 1L
+      violating_triplets <- c(violating_triplets, paste(A, B, C, sep = "-"))
+    }
+  }
+  return(list(
+    tests = tests,
+    violations = violations,
+    strict_ultrametric = (violations == 0L),
+    violating_triplets = violating_triplets))
+}
+
+dist_msa_sq <- as.dist(dist_matrix_sq)
+res <- check_strict_ultrametric_property(dist_matrix_sq, tol = 0.1)
+
+# Ergebnisse speichern
+cat("Ultrametrie-Eigenschaftsprüfung:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt")
+cat("Tests:", res$tests, "\nVerletzungen:", res$violations, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+
+message("Verletzungen der strikten Ultrametrie: ", res$violations)
+
+# Hierarchisches Clustering (UPGMA, WPGMA, Ward)
+hc_upgma <- hclust(dist_msa_sq, method = "average")
+hc_wpgma <- hclust(dist_msa_sq, method = "mcquitty")
+hc_ward <- hclust(dist_msa_sq, method = "ward.D2")
+
+# ==== 3. Phylogenetische Bäume aus hierarchischem Clustering ====
+
+phylo_tree_upgma <- as.phylo(hc_upgma)
+phylo_tree_wpgma <- as.phylo(hc_wpgma)
+phylo_tree_ward <- as.phylo(hc_ward)
+
+# Bäume plotten und speichern
+pdf("Results_PhylogeneticTree/Phylogenetic_Trees.pdf", width = 10, height = 8)
+
+plot(phylo_tree_upgma, cex = 0.6, main = "UPGMA phylogenetischer Baum")
+plot(phylo_tree_wpgma, cex = 0.6, main = "WPGMA phylogenetischer Baum")
+plot(phylo_tree_ward, cex = 0.6, main = "Ward.D2 phylogenetischer Baum")
+
+dev.off()
+message("Phylogenetische Bäume gespeichert: Results_PhylogeneticTree/Phylogenetic_Trees.pdf")
+
+# Tanglegrams (Baumvergleiche) speichern
+pdf("Results_PhylogeneticTree/Tree_Comparisons.pdf", width = 12, height = 8)
+
+# UPGMA vs WPGMA
+phylo_list_upgma_wpgma <- dendlist(as.dendrogram(hc_upgma), as.dendrogram(hc_wpgma))
+phylo_list_upgma_wpgma %>%
+  dendextend::untangle() %>%
+  tanglegram(main_left = "UPGMA", main_right = "WPGMA",
+             lwd = 2, edge.lwd = 2, common_subtrees_color_branches = TRUE,
+             columns_width = c(5, 1, 5), margin_inner = 12, lab.cex = 0.6)
+
+# UPGMA vs Ward
+phylo_list_upgma_ward <- dendlist(as.dendrogram(phylo_tree_upgma), as.dendrogram(phylo_tree_ward))
+phylo_list_upgma_ward %>%
+  dendextend::untangle() %>%
+  tanglegram(main_left = "UPGMA", main_right = "Ward",
+             lwd = 2, edge.lwd = 2, common_subtrees_color_branches = TRUE,
+             columns_width = c(5, 1, 5), margin_inner = 12, lab.cex = 0.6)
+
+dev.off()
+message("Tanglegrams gespeichert: Results_PhylogeneticTree/Tree_Comparisons.pdf")
 
 
+# ==== 4. Robustheit ====
 
+# Funktion: Robustheit berechnen
+calculate_robustness <- function(tree, dist_matrix, rho) {
+  cophenetic_distances <- cophenetic(tree)
+  max_diff <- max(abs(cophenetic_distances - dist_matrix))
+  
+  num_tips <- length(tree$tip.label)
+  num_nodes <- tree$Nnode
+  internal_nodes <- (num_tips + 1):(num_tips + num_nodes)
+  internal_edges <- which(tree$edge[, 2] %in% internal_nodes)
+  internal_edge_lengths <- tree$edge.length[internal_edges]
+  
+  if(length(internal_edge_lengths) > 0) {
+      min_edge_length <- min(internal_edge_lengths)
+      robustness_truth <- max_diff <= rho * min_edge_length
+      est_rho <- max_diff/min_edge_length
+      return(list(truth=robustness_truth, est_rho=est_rho, max_dist=max_diff, w0=min_edge_length))
+  } else {
+      return(list(truth=NA, est_rho=NA, max_dist=max_diff, w0=NA))
+  }
+}
 
+# Robustheit berechnen (UPGMA)
+robustness_upgma <- calculate_robustness(phylo_tree_upgma, dist_matrix_sq, 1)
+
+# Ergebnisse anhängen
+cat("\nRobustheit des UPGMA Baums:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Wahrheit (Truth):", robustness_upgma$truth, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Geschätztes Rho (Est Rho):", robustness_upgma$est_rho, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+
+message("Robustheitsprüfung abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
