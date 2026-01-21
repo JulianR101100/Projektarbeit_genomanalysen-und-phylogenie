@@ -3,11 +3,13 @@ rm(list = ls())
 library(ggplot2)
 # library("tidyverse")
 library(Biostrings)
+library(pwalign) # Weil Biositrings manche sub-matritzen nicht mehr untersützt
 library(seqinr)
 library(ordinal)
 library(dplyr)
 library(stringr)
 library(readr)
+library(reshape2)
 
 
 # Select Working Directory ----
@@ -48,6 +50,11 @@ colnames(blast_data_80) <- c("Accession_ID", "Alignment_length", "Percent_identi
 # PAM30
 blast_data_30 <- read.table("Data/query_seq_blast_PAM30.blast")
 colnames(blast_data_30) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
+                             "Gaps_number", "Score", "Bit_score", "E_value")
+
+# BLOSUM90
+blast_data_90 <- read.table("Data/query_seq_blast_BLOSUM90.blast")
+colnames(blast_data_90) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
                              "Gaps_number", "Score", "Bit_score", "E_value")
 
 
@@ -189,18 +196,30 @@ print(plot_bitscore_significance(annotated_blast_results))
 # Berechnung der durchschnittlichen Identität (basierend auf BLOSUM62 Standard)
 # Wir betrachten die Top-Treffer (ähnlich zu unserer Auswahl für die Phylogenie),
 # da diese die Signale sind, die wir optimal auflösen wollen.
+calc_mean_identity <- function(blast_data) {
+  mean_identity <- mean(blast_data$Percent_identity)
+  return(round(mean_identity, 2))
+}
+
+calc_target_identity <- function(blast_data, top_n = 30) {
+  target_identity <- mean(head(blast_data$Percent_identity, top_n))
+  return(round(target_identity, 2))
+}
+
 mean_identity_all <- mean(blast_data_62$Percent_identity)
 target_identity <- mean(head(blast_data_62$Percent_identity, 30))
 
-message("Durchschnittliche Identität (Alle Hits):
-        \nBlosum62: ", round(mean_identity_all, 2), 
-        " %\nBlosum80: ", round(mean(blast_data_80$Percent_identity), 2), 
-        " %\nPalm30: ", round(mean(blast_data_30$Percent_identity), 2), "%" )
+message("Durchschnittliche Identität (Alle Hits):",
+        "\nBLOSUM62: ", calc_mean_identity(blast_data_62), "%",
+        "\nBLOSUM80: ", calc_mean_identity(blast_data_80), "%",
+        "\nBLOSUM90: ", calc_mean_identity(blast_data_90), "%",
+        "\nPAM30:    ", calc_mean_identity(blast_data_30), "%")
 
-message("Durchschnittliche Identität (Top 30 Hits):
-        \nBlosum62: ", round(target_identity, 2), 
-        " %\nBlosum80: ", round(mean(head(blast_data_80$Percent_identity, 30)), 2), 
-        " %\nPalm30: ", round(mean(head(blast_data_30$Percent_identity, 30)), 2), "%" )
+message("Durchschnittliche Identität (Top 30 Hits):",
+        "\nBLOSUM62: ", calc_target_identity(blast_data_62), "%",
+        "\nBLOSUM80: ", calc_target_identity(blast_data_80), "%",
+        "\nBLOSUM90: ", calc_target_identity(blast_data_90), "%",
+        "\nPAM30:    ", calc_target_identity(blast_data_30), "%")
 
 
 
@@ -228,13 +247,93 @@ get_mean_bitscore_top30 <- function(df) {
 score_62_robust <- get_mean_bitscore_top30(blast_data_62)
 score_80_robust <- get_mean_bitscore_top30(blast_data_80)
 score_30_robust <- get_mean_bitscore_top30(blast_data_30)
+score_90_robust <- get_mean_bitscore_top30(blast_data_90)
 
 message("Durchschnittlicher Bit-Score (Hits 2-30):",
         "\nBLOSUM62: ", round(score_62_robust, 2),
         "\nBLOSUM80: ", round(score_80_robust, 2),
+        "\nBLOSUM90: ", round(score_90_robust, 2),
         "\nPAM30:    ", round(score_30_robust, 2))
 
-# PAM30 gewinnt!
+# PAM30 gewinnt! -> Und das nicht nur wei es die Strengste ist (vgl mit BLOSUM90)
+# Wir wählen PAM30 für die finale Analyse
+
+# Analyse der "Strengheit" der Sub-Matritzen
+# Laden der Matrizen aus dem Biostrings Paket
+data("PAM30")
+data("BLOSUM62")
+data("BLOSUM80")
+data("BLOSUM90")
+data("BLOSUM100") # Als Vergleich für sehr strenge BLOSUM
+
+sub_matrices <- list(
+  BLOSUM62 = BLOSUM62, 
+  BLOSUM80 = BLOSUM80, 
+  BLOSUM100 = BLOSUM100, 
+  PAM30 = PAM30
+)
+
+analyze_matrix_stats <- function(mat, name) {
+  # Nur die Standard-Aminosäuren nutzen (ohne B, Z, X, *)
+  aa <- c("A","R","N","D","C","Q","E","G","H","I",
+          "L","K","M","F","P","S","T","W","Y","V")
+  sub_mat <- mat[aa, aa]
+  
+  # Diagonale Werte (Matches)
+  diag_vals <- diag(sub_mat)
+  
+  # Off-Diagonale Werte (Mismatches)
+  off_diag_vals <- sub_mat[lower.tri(sub_mat)]
+  
+  return(data.frame(
+    Matrix = name,
+    Mean_Match_Score = mean(diag_vals),
+    Mean_Mismatch_Score = mean(off_diag_vals),
+    Entropy_Proxy = mean(diag_vals) - mean(off_diag_vals) # Simple Maß für Diskriminierungskraft
+  ))
+}
+
+results <- do.call(rbind, lapply(names(sub_matrices), function(n) analyze_matrix_stats(sub_matrices[[n]], n)))
+
+print("=== Statistische Analyse der Matrix-Härte ===")
+print(results)
+
+# Visualisierung der Härte (Match-Score)
+ggplot(results, aes(x = reorder(Matrix, Mean_Match_Score), y = Mean_Match_Score, fill = Matrix)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Vergleich der 'Strenge': Durchschnittlicher Score für identische Matches",
+       subtitle = "Höhere Scores deuten auf eine stärkere Belohnung von Identität hin (strenge Matrix)",
+       y = "Durchschnittlicher Score (Matches)", x = "Matrix") +
+  theme_minimal()
+
+# Vergleich der Differenz-Matrizen (PAM30 vs BLOSUM80/90)
+# Positive Werte bedeuten: PAM30 belohnt diesen Austausch stärker (oder bestraft weniger).
+# Negative Werte bedeuten: PAM30 ist hier strenger.
+
+aa <- c("A","R","N","D","C","Q","E","G","H","I",
+        "L","K","M","F","P","S","T","W","Y","V")
+
+# Differenz-Daten vorbereiten
+diff_80 <- melt(PAM30[aa, aa] - BLOSUM80[aa, aa])
+diff_80$Comparison <- "PAM30 - BLOSUM80"
+
+diff_90 <- melt(PAM30[aa, aa] - BLOSUM90[aa, aa])
+diff_90$Comparison <- "PAM30 - BLOSUM90"
+
+diff_combined <- rbind(diff_80, diff_90)
+colnames(diff_combined) <- c("AA1", "AA2", "Differenz", "Vergleich")
+
+ggplot(diff_combined, aes(x = AA1, y = AA2, fill = Differenz)) +
+  geom_tile() +
+  facet_wrap(~Vergleich) +
+  scale_fill_gradient2(low = "firebrick3", mid = "white", high = "dodgerblue3", midpoint = 0) +
+  labs(title = "Differenz-Matrizen im Vergleich",
+       subtitle = "Blau = PAM30 gibt mehr Punkte, Rot = PAM30 ist strenger/bestraft härter",
+       x = "Aminosäure 1", y = "Aminosäure 2", fill = "Score Diff") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 # ==== Speichern der Top30 mit gewählter Substitutionsmatrix (PAM30) ====
 # 1. Anotieren der PAM30 Ergebnisse
 pam30_annotated <- annotate_blast_results(
