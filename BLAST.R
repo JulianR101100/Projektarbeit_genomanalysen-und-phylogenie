@@ -1,6 +1,7 @@
 # Library and Settings ----
 rm(list = ls())
 library(ggplot2)
+# library(tidyr)
 # library("tidyverse")
 library(Biostrings)
 library(pwalign) # Weil Biositrings manche sub-matritzen nicht mehr untersützt
@@ -47,14 +48,19 @@ blast_data_80 <- read.table("Data/query_seq_blast_BLOSUM80.blast")
 colnames(blast_data_80) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
                              "Gaps_number", "Score", "Bit_score", "E_value")
 
-# PAM30
-blast_data_30 <- read.table("Data/query_seq_blast_PAM30.blast")
-colnames(blast_data_30) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
-                             "Gaps_number", "Score", "Bit_score", "E_value")
-
 # BLOSUM90
 blast_data_90 <- read.table("Data/query_seq_blast_BLOSUM90.blast")
 colnames(blast_data_90) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
+                             "Gaps_number", "Score", "Bit_score", "E_value")
+
+# PAM70
+blast_data_70 <- read.table("Data/query_seq_blast_PAM70.blast")
+colnames(blast_data_70) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
+                             "Gaps_number", "Score", "Bit_score", "E_value")
+
+# PAM30
+blast_data_30 <- read.table("Data/query_seq_blast_PAM30.blast")
+colnames(blast_data_30) <- c("Accession_ID", "Alignment_length", "Percent_identity", 
                              "Gaps_number", "Score", "Bit_score", "E_value")
 
 
@@ -191,164 +197,146 @@ print(plot_bitscore_significance(annotated_blast_results))
 
 
 
-# ==== Analyse zur Wahl der Substitutionsmatrix (BLOSUM62 vs BLOSUM80 vs PAM30) ====
-
-# Berechnung der durchschnittlichen Identität (basierend auf BLOSUM62 Standard)
-# Wir betrachten die Top-Treffer (ähnlich zu unserer Auswahl für die Phylogenie),
-# da diese die Signale sind, die wir optimal auflösen wollen.
+# ==== Allgemiene Analyse für Wahl der Substitutionsmatrix ====
+# 1. identitäten und allgemeiner Vergeleich
 calc_mean_identity <- function(blast_data) {
   mean_identity <- mean(blast_data$Percent_identity)
   return(round(mean_identity, 2))
 }
-
 calc_target_identity <- function(blast_data, top_n = 30) {
   target_identity <- mean(head(blast_data$Percent_identity, top_n))
   return(round(target_identity, 2))
 }
 
-mean_identity_all <- mean(blast_data_62$Percent_identity)
-target_identity <- mean(head(blast_data_62$Percent_identity, 30))
+# mean_identity_all <- mean(blast_data_62$Percent_identity)
+# target_identity <- mean(head(blast_data_62$Percent_identity, 30))
 
 message("Durchschnittliche Identität (Alle Hits):",
         "\nBLOSUM62: ", calc_mean_identity(blast_data_62), "%",
         "\nBLOSUM80: ", calc_mean_identity(blast_data_80), "%",
         "\nBLOSUM90: ", calc_mean_identity(blast_data_90), "%",
-        "\nPAM30:    ", calc_mean_identity(blast_data_30), "%")
+        "\nPAM30:    ", calc_mean_identity(blast_data_30), "%",
+        "\nPAM70:    ", calc_mean_identity(blast_data_70), "%")
 
 message("Durchschnittliche Identität (Top 30 Hits):",
         "\nBLOSUM62: ", calc_target_identity(blast_data_62), "%",
         "\nBLOSUM80: ", calc_target_identity(blast_data_80), "%",
         "\nBLOSUM90: ", calc_target_identity(blast_data_90), "%",
-        "\nPAM30:    ", calc_target_identity(blast_data_30), "%")
-
-
-
-# 3. Entscheidungshilfe / Logik
-# Theorie:
-# BLOSUM62: ~62% Identität (Allrounder)
-# BLOSUM80: ~80% Identität (für nähere Verwandte)
-# PAM30:    <30 PAM (~70-90% Identität, für sehr kurze evolutionäre Distanzen)
-
-target_identity
-
-
-# 4. Vergleich der Bit-Scores für die Top 30 Hits (ohne Self-Hit)
-# Wissenschaftlich saubere Validierung: Wir ignorieren den Self-Hit (Platz 1),
-# dieser gewinnt bei strengen Matrizen trivialerweise immer
-# Stattdessen vergleichen wir die Hits 2 bis 30 (echte Orthologe).
-# Die Matrix, die hier den höchsten Bit-Score liefert, modelliert die biologische Variation am besten.
+        "\nPAM30:    ", calc_target_identity(blast_data_30), "%",
+        "\nPAM70:    ", calc_target_identity(blast_data_70), "%")
 
 get_mean_bitscore_top30 <- function(df) {
   # Wir nehmen Zeile 2 bis 30 (oder weniger, falls weniger Treffer existieren)
   n <- min(nrow(df), 30)
-  return(mean(df$Bit_score[2:n]))
+  return(round(mean(df$Bit_score[2:n]), 2))
 }
 
-score_62_robust <- get_mean_bitscore_top30(blast_data_62)
-score_80_robust <- get_mean_bitscore_top30(blast_data_80)
-score_30_robust <- get_mean_bitscore_top30(blast_data_30)
-score_90_robust <- get_mean_bitscore_top30(blast_data_90)
-
 message("Durchschnittlicher Bit-Score (Hits 2-30):",
-        "\nBLOSUM62: ", round(score_62_robust, 2),
-        "\nBLOSUM80: ", round(score_80_robust, 2),
-        "\nBLOSUM90: ", round(score_90_robust, 2),
-        "\nPAM30:    ", round(score_30_robust, 2))
+        "\nBLOSUM62: ", get_mean_bitscore_top30(blast_data_62),
+        "\nBLOSUM80: ", get_mean_bitscore_top30(blast_data_80),
+        "\nBLOSUM90: ", get_mean_bitscore_top30(blast_data_90),
+        "\nPAM30:    ", get_mean_bitscore_top30(blast_data_30),
+        "\nPAM70:    ", get_mean_bitscore_top30(blast_data_70))
 
-# PAM30 gewinnt! -> Und das nicht nur wei es die Strengste ist (vgl mit BLOSUM90)
-# Wir wählen PAM30 für die finale Analyse
-
-# Analyse der "Strengheit" der Sub-Matritzen
-# Laden der Matrizen aus dem Biostrings Paket
-data("PAM30")
-data("BLOSUM62")
-data("BLOSUM80")
-data("BLOSUM90")
-data("BLOSUM100") # Als Vergleich für sehr strenge BLOSUM
-
-sub_matrices <- list(
-  BLOSUM62 = BLOSUM62, 
-  BLOSUM80 = BLOSUM80, 
-  BLOSUM100 = BLOSUM100, 
-  PAM30 = PAM30
+# ==== Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
+# 2. Definition der Theoretischen Entropie (H)
+# Werte basierend auf Literatur (Altschul et al. / NCBI Dokumentation).
+# H (in Bits) ist ein Maß für den Informationsgehalt der Matrix pro alignierter Position.
+# Hohes H = Matrix für sehr ähnliche Sequenzen (kurze Evolution).
+# Niedriges H = Matrix für entfernte Sequenzen (lange Evolution).
+matrix_entropy <- data.frame(
+  Matrix = c("PAM30", "PAM70", "BLOSUM90", "BLOSUM80", "BLOSUM62"),
+  H_theoretical = c(2.57, 1.60, 1.18, 0.99, 0.70),
+  stringsAsFactors = FALSE
 )
 
-analyze_matrix_stats <- function(mat, name) {
-  # Nur die Standard-Aminosäuren nutzen (ohne B, Z, X, *)
-  aa <- c("A","R","N","D","C","Q","E","G","H","I",
-          "L","K","M","F","P","S","T","W","Y","V")
-  sub_mat <- mat[aa, aa]
+# 2. Funktion zur Berechnung der Observed Bits per Residue
+# Wir prüfen, wie viel Information wir tatsächlich pro Position extrahieren konnten.
+calculate_observed_entropy <- function(blast_data, matrix_name) {
+  # Wir betrachten die Top 30 Hits (Orthologe + evtl. Paraloge/Isoformen)
+  # Um robust zu sein, nehmen wir die tatsächlichen Top 30 des jeweiligen Laufs.
+  top30 <- head(blast_data, 30)
   
-  # Diagonale Werte (Matches)
-  diag_vals <- diag(sub_mat)
+  # Berechnung: Bits per Residue = BitScore / Alignment Länge
+  # Wenn die Matrix gut passt, sollte dieser Wert nahe an der theoretischen Entropie (H) liegen.
+  # Ist er viel niedriger, bestraft die Matrix Mismatches/Gaps zu hart -> Matrix ist zu streng.
+  top30$Bits_per_Residue <- top30$Bit_score / top30$Alignment_length
   
-  # Off-Diagonale Werte (Mismatches)
-  off_diag_vals <- sub_mat[lower.tri(sub_mat)]
+  # Durchschnitt über die Top 30
+  mean_obs <- mean(top30$Bits_per_Residue, na.rm = TRUE)
   
   return(data.frame(
-    Matrix = name,
-    Mean_Match_Score = mean(diag_vals),
-    Mean_Mismatch_Score = mean(off_diag_vals),
-    Entropy_Proxy = mean(diag_vals) - mean(off_diag_vals) # Simple Maß für Diskriminierungskraft
+    Matrix = matrix_name,
+    Observed_Bits_per_Residue = round(mean_obs, 3)
   ))
 }
 
-results <- do.call(rbind, lapply(names(sub_matrices), function(n) analyze_matrix_stats(sub_matrices[[n]], n)))
+# Daten aggregieren
+entropy_comparison <- rbind(
+  calculate_observed_entropy(blast_data_30, "PAM30"),
+  calculate_observed_entropy(blast_data_70, "PAM70"),
+  calculate_observed_entropy(blast_data_90, "BLOSUM90"),
+  calculate_observed_entropy(blast_data_80, "BLOSUM80"),
+  calculate_observed_entropy(blast_data_62, "BLOSUM62")
+)
 
-print("=== Statistische Analyse der Matrix-Härte ===")
-print(results)
+# Merge mit theoretischen Werten
+entropy_comparison <- merge(entropy_comparison, matrix_entropy, by = "Matrix")
 
-# Visualisierung der Härte (Match-Score)
-ggplot(results, aes(x = reorder(Matrix, Mean_Match_Score), y = Mean_Match_Score, fill = Matrix)) +
-  geom_col() +
-  coord_flip() +
-  labs(title = "Vergleich der 'Strenge': Durchschnittlicher Score für identische Matches",
-       subtitle = "Höhere Scores deuten auf eine stärkere Belohnung von Identität hin (strenge Matrix)",
-       y = "Durchschnittlicher Score (Matches)", x = "Matrix") +
-  theme_minimal()
+# Differenz berechnen
+entropy_comparison$Difference <- entropy_comparison$H_theoretical - entropy_comparison$Observed_Bits_per_Residue
 
-# Vergleich der Differenz-Matrizen (PAM30 vs BLOSUM80/90)
-# Positive Werte bedeuten: PAM30 belohnt diesen Austausch stärker (oder bestraft weniger).
-# Negative Werte bedeuten: PAM30 ist hier strenger.
+# Vergleich: Observed vs. Theoretical Entropy (Bits per Residue)
+entropy_comparison
 
-aa <- c("A","R","N","D","C","Q","E","G","H","I",
-        "L","K","M","F","P","S","T","W","Y","V")
+# Interpretation / Entscheidungshilfe
+# Wir suchen die Matrix, die:
+# 1. Einen möglichst hohen Informationsgehalt (H) bietet (um feine Unterschiede aufzulösen).
+# 2. Dabei aber keinen "Einbruch" bei den Observed Bits zeigt (Differenz sollte nicht riesig sein).
+# PAM30 hat das höchste H (2.57). Wenn Observed ebenfalls hoch ist (~2.0+), 
+# bestätigt das, dass die Sequenzen konserviert genug für diese strenge Matrix sind.
 
-# Differenz-Daten vorbereiten
-diff_80 <- melt(PAM30[aa, aa] - BLOSUM80[aa, aa])
-diff_80$Comparison <- "PAM30 - BLOSUM80"
+# Visualisierung
+# Wir formen die Daten für ggplot um
+plot_data <- pivot_longer(entropy_comparison, cols = c("H_theoretical", "Observed_Bits_per_Residue"), 
+                          names_to = "Metric", values_to = "Bits")
 
-diff_90 <- melt(PAM30[aa, aa] - BLOSUM90[aa, aa])
-diff_90$Comparison <- "PAM30 - BLOSUM90"
+# Faktor-Level ordnen für schöne Darstellung (nach theoretischer Härte)
+plot_data$Matrix <- factor(plot_data$Matrix, levels = c("PAM30", "PAM70", "BLOSUM90", "BLOSUM80", "BLOSUM62"))
 
-diff_combined <- rbind(diff_80, diff_90)
-colnames(diff_combined) <- c("AA1", "AA2", "Differenz", "Vergleich")
-
-ggplot(diff_combined, aes(x = AA1, y = AA2, fill = Differenz)) +
-  geom_tile() +
-  facet_wrap(~Vergleich) +
-  scale_fill_gradient2(low = "firebrick3", mid = "white", high = "dodgerblue3", midpoint = 0) +
-  labs(title = "Differenz-Matrizen im Vergleich",
-       subtitle = "Blau = PAM30 gibt mehr Punkte, Rot = PAM30 ist strenger/bestraft härter",
-       x = "Aminosäure 1", y = "Aminosäure 2", fill = "Score Diff") +
+ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Matrix-Passform: Theorie vs. Praxis",
+    subtitle = "Vergleich der relativen Entropie (H) mit den tatsächlich erzielten Bits/Residue.\nIst Observed << Theoretical, ist die Matrix zu streng (viele Strafen).",
+    y = "Bits per Residue",
+    x = "Substitutionsmatrix",
+    fill = "Metrik"
+  ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_manual(values = c("H_theoretical" = "grey70", "Observed_Bits_per_Residue" = "dodgerblue3"),
+                    labels = c("Theoretisches H (Max)", "Beobachtet (Top 30 Avg)"))
 
-# ==== Speichern der Top30 mit gewählter Substitutionsmatrix (PAM30) ====
-# 1. Anotieren der PAM30 Ergebnisse
-pam30_annotated <- annotate_blast_results(
-  blast_results = blast_data_30,
+# FAZIT: 
+# PAM30 bietet das höchste theoretische Potential (H=2.57).
+# Da unser TSR3 Protein hoch konserviert ist, erreichen wir auch empirisch sehr hohe Werte.
+# Wir nutzen also PAM70, um die maximale Information aus den Alignments zu ziehen.
+
+# ==== Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
+# 1. Anotieren der PAM70 Ergebnisse
+pam70_annotated <- annotate_blast_results(
+  blast_results = blast_data_70,
   e_value_threshold = 1e-155,
   create_csv = FALSE
 )
 
 # 2. Top 30 selektieren
-top30_pam30 <- head(pam30_annotated, 30)
+top30_pam70 <- head(pam70_annotated, 30)
 
 # 3. Speichern der CSV
-csv_output_path <- "Results_BLAST/top30_pam30_annotated.csv"
-write_csv(top30_pam30, csv_output_path)
-message("Top 30 PAM30 Ergebnisse gespeichert in: ", csv_output_path)
+csv_output_path <- "Results_BLAST/top30_pam70_annotated.csv"
+write_csv(top30_pam70, csv_output_path)
+message("Top 30 PAM70 Ergebnisse gespeichert in: ", csv_output_path)
 
 # 4. Sequenzen extrahieren und als FASTA speichern Extrahiere Sequenzen für MSA...
 
@@ -365,7 +353,7 @@ names(db_sequences) <- word(names(db_sequences), 1)
 
 # Filtern: Nur Sequenzen behalten, deren Name in unserer Top30 Liste ist
 # Wir nutzen match, um auch die Reihenfolge beizubehalten (optional, aber nett)
-target_ids <- top30_pam30$Accession_ID
+target_ids <- top30_pam70$Accession_ID
 matched_indices <- match(target_ids, names(db_sequences))
 
 # Checken ob alle gefunden wurden
