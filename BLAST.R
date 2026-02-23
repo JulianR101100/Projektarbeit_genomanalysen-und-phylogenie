@@ -1,8 +1,8 @@
 # Library and Settings ----
 rm(list = ls())
 library(ggplot2)
-# library(tidyr)
-# library("tidyverse")
+library(tidyr)
+library("tidyverse")
 library(Biostrings)
 library(pwalign) # Weil Biositrings manche sub-matritzen nicht mehr untersützt
 library(seqinr)
@@ -316,6 +316,28 @@ ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
   theme_minimal() +
   scale_fill_manual(values = c("H_theoretical" = "grey70", "Observed_Bits_per_Residue" = "dodgerblue3"),
                     labels = c("Theoretisches H (Max)", "Beobachtet (Top 30 Avg)"))
+
+
+# ==== Validierung der Hintergrundfrequenzen (Compositional Check) ====
+
+# 1. Query-Sequenz einlesen
+query_seq <- readAAStringSet("Data/Rohdaten/query_sequence.fasta")
+
+# 2. Beobachtete Frequenzen (p_i) berechnen
+as_freq <- alphabetFrequency(query_seq, as.prob = TRUE)[1, 1:20]
+
+# 3. Standard-Frequenzen (Robinson-Robinson Modell, Grundlage vieler Matrizen)
+std_freq <- c(A=0.0825, R=0.0553, N=0.0406, D=0.0545, C=0.0137, Q=0.0393, 
+              E=0.0675, G=0.0707, H=0.0227, I=0.0596, L=0.0966, K=0.0584, 
+              M=0.0242, F=0.0386, P=0.0470, S=0.0656, T=0.0534, W=0.0108, 
+              Y=0.0292, V=0.0687)
+
+# 4. Vergleich & Korrelation (Prüfung auf ungewöhnliche Komposition)
+comp_check <- data.frame(AA = names(std_freq), Observed = as.numeric(as_freq[names(std_freq)]), Standard = std_freq)
+rho <- cor(comp_check$Observed, comp_check$Standard)
+
+message("Die Korrelation der Aminosäure-Zusammensetzung beträgt:", round(rho, 3) , "% Ein hoher Wert > 0.9 bestätigt die Eignung der Standard-Matrizen)")
+comp_check_sorted <- comp_check %>% mutate(Diff = Observed - Standard) %>% arrange(desc(Diff))
 
 # FAZIT: 
 # PAM30 bietet das höchste theoretische Potential (H=2.57).
