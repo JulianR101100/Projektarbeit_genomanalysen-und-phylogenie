@@ -1,5 +1,6 @@
 # Library and Settings ----
 rm(list = ls())
+library(ggplot2)
 library(Biostrings)
 library(msa)
 library(readr)
@@ -34,7 +35,7 @@ rm(wds, i)
 # ==== 1. Sequenzen & Metadaten Laden & Vorbereiten ====
 
 seqs <- readAAStringSet("Results_MultibleSequenceAlign/top30_sequences.fasta")
-meta <- read_csv("Results_BLAST/top30_pam30_annotated.csv", show_col_types = FALSE)
+meta <- read_csv("Results_BLAST/top30_pam70_annotated.csv", show_col_types = FALSE)
 
 # Robust renaming: Ensure the order of metadata matches the order of sequences
 # Create the new labels in the metadata
@@ -57,7 +58,7 @@ message("Starte Multiple Sequence Alignment mit ClustalW...")
 
 msa_res <- msa(seqs, method = "ClustalW")
 # Kurze Vorschau in der Konsole
-msa_res
+# msa_res
 
 # ==== 3. Ergebnisse Exportieren & Speichern ====
 
@@ -67,16 +68,33 @@ saveRDS(msa_res,
         "Results_MultibleSequenceAlign/msa_result.rds")
 
 # ==== 4. Visualisierung des Alignments ====
+message("Bereite Visualisierung vor...")
 
-# ggmsa ist nicht so easy man muss das iwi konvertieren, frag nicht wieso,
-# Die ergebnisse daraus sind eh hesslich also würd ich schauen ob es ein extenres 
-# tol gibt mit dem wir das schön machen
+# Wir extrahieren die Sequenzen in ein neues Objekt
+plot_seqs <- unmasked(msa_res)
 
-ggmsa(unmasked(msa_res),
-      start = 1,
-      end = 100,
-      font = NULL, # Font NULL beschleunigt das Rendering bei vielen Sequenzen sieht aber besser aus ohne
-      color = "Chemistry_AA") +
-  geom_seqlogo() +
-  theme(axis.text.y = element_text(size = 8)) # Beschriftung etwas kleiner
+# Wir gleichen die aktuellen, robusten Namen mit den Metadaten ab,
+# um den reinen Organismus-Namen (ohne Accession ID) abzurufen
+match_plot <- match(names(plot_seqs), meta$label)
 
+# Reine Organismus-Namen laden und Leerzeichen durch Unterstriche ersetzen
+clean_org_names <- str_replace_all(meta$Organism[match_plot], " ", "_")
+
+# Zwingend für ggmsa: Namen eindeutig machen (hängt .1, .2 an Duplikate an)
+names(plot_seqs) <- make.unique(clean_org_names)
+
+# ==== 5. Visualisierung des Alignments ====
+msa_plot <- ggmsa(plot_seqs,
+                  font = NULL, 
+                  color = "Chemistry_AA") +
+  theme(axis.text.y = element_text(size = 8))
+
+# Hochauflösender Export für die Präsentation
+ggsave("Results_MultibleSequenceAlign/MSA_Visualization_HighRes.png", 
+       plot = msa_plot, 
+       width = 50,  
+       height = 8,  
+       dpi = 300, 
+       limitsize = FALSE)
+
+message("Hochauflösendes Bild wurde gespeichert!")

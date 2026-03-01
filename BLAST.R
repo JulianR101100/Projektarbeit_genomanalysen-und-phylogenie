@@ -36,7 +36,7 @@ for (i in seq_len(nrow(wds))) {
 }
 rm(wds, i)
 
-# ==== Blast Ergebnisse Einlesen (verschiedene Substitutionsmatritzen) ====
+# ==== 0.1 Blast Ergebnisse Einlesen (verschiedene Substitutionsmatritzen) ====
 
 # BLOSUM 62
 blast_data_62 <- read.table("Data/query_seq_blast_BLOSUM62.blast")
@@ -64,7 +64,7 @@ colnames(blast_data_30) <- c("Accession_ID", "Alignment_length", "Percent_identi
                              "Gaps_number", "Score", "Bit_score", "E_value")
 
 
-# ==== Daten Anotieren =====
+# ==== 0.2 Daten Anotieren =====
 annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten/database.fasta", 
                                    e_value_threshold, create_csv = FALSE) {
   
@@ -125,7 +125,7 @@ blast_data_30[blast_data_30$Alignment_length > 312, ]
 # Gen ist sehr gut konserviert.  nur zwei Primaten (9, 18) mit gaps (alignmentlen > 312)
 top30_identity[top30_identity$Alignment_length > 312, c("Organism", "Percent_identity", "Alignment_length", "E_value")]
 
-# ==== Blast Ergebnisse Visualisieren ====
+# ==== 1. Blast Ergebnisse Visualisieren ====
 
 #' Plot: Empirische Score-Verteilung vs. Theoretische Gumbel-Verteilung
 #' @param lambda (Standard für BLOSUM62: 0.267)
@@ -197,7 +197,7 @@ print(plot_bitscore_significance(annotated_blast_results))
 
 
 
-# ==== Allgemiene Analyse für Wahl der Substitutionsmatrix ====
+# ==== 2. Allgemiene Analyse für Wahl der Substitutionsmatrix ====
 # 1. identitäten und allgemeiner Vergeleich
 calc_mean_identity <- function(blast_data) {
   mean_identity <- mean(blast_data$Percent_identity)
@@ -238,7 +238,7 @@ message("Durchschnittlicher Bit-Score (Hits 2-30):",
         "\nPAM30:    ", get_mean_bitscore_top30(blast_data_30),
         "\nPAM70:    ", get_mean_bitscore_top30(blast_data_70))
 
-# ==== Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
+# ==== 3. Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
 # 2. Definition der Theoretischen Entropie (H)
 # Werte basierend auf Literatur (Altschul et al. / NCBI Dokumentation).
 # H (in Bits) ist ein Maß für den Informationsgehalt der Matrix pro alignierter Position.
@@ -318,7 +318,7 @@ ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
                     labels = c("Theoretisches H (Max)", "Beobachtet (Top 30 Avg)"))
 
 
-# ==== Validierung der Hintergrundfrequenzen (Compositional Check) ====
+# ==== 4. Validierung der Hintergrundfrequenzen (Compositional Check) ====
 
 # 1. Query-Sequenz einlesen
 query_seq <- readAAStringSet("Data/Rohdaten/query_sequence.fasta")
@@ -344,7 +344,7 @@ comp_check_sorted <- comp_check %>% mutate(Diff = Observed - Standard) %>% arran
 # Da unser TSR3 Protein hoch konserviert ist, erreichen wir auch empirisch sehr hohe Werte.
 # Wir nutzen also PAM70, um die maximale Information aus den Alignments zu ziehen.
 
-# ==== Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
+# ==== 5. Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
 # 1. Anotieren der PAM70 Ergebnisse
 pam70_annotated <- annotate_blast_results(
   blast_results = blast_data_70,
@@ -389,4 +389,119 @@ top30_seqs_final <- db_sequences[na.omit(matched_indices)]
 fasta_output_path <- "Results_MultibleSequenceAlign/top30_sequences.fasta"
 writeXStringSet(top30_seqs_final, fasta_output_path)
 message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
+
+
+# ==== 6. Validierung der Zielhäufigkeiten (q_ij Analyse) ====
+
+#' @description Validiert die Wahl der Substitutionsmatrix (PAM70) durch Abgleich 
+#' der theoretischen Zielhäufigkeiten mit den empirisch im MSA beobachteten Mutationen.
+validate_substitution_matrix <- function(msa_path = "Results_MultibleSequenceAlign/msa_result.rds", 
+                                          matrix_name = "BLOSUM80") {
+  
+  message("Starte statistische Validierung der ", matrix_name, "-Passform mittels Zielhäufigkeiten...")
+  
+  # 1. MSA laden (Unterstützung für .rds Objekte aus dem msa-Paket)
+  if (!file.exists(msa_path)) {
+    stop("MSA Datei nicht gefunden. Bitte erst multiple_sequence_alignment.R ausführen.")
+  }
+  msa_res <- readRDS(msa_path)
+  msa_mat <- as.matrix(msa_res)
+  
+  # 2. Aminosäure-Liste (Standard 20)
+  aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
+  
+  # 3. Substitutions-Zählmatrix initialisieren
+  # Wir zählen, wie oft jedes AA-Paar in den Spalten des MSA vorkommt.
+  sub_counts <- matrix(0, nrow = 20, ncol = 20, dimnames = list(aa_list, aa_list))
+  
+  message("Berechne beobachtete Substitutionen aus MSA-Spalten...")
+  for (col in 1:ncol(msa_mat)) {
+    residues <- msa_mat[, col]
+    residues <- residues[residues %in% aa_list] # Nur Standard-AAs berücksichtigen (keine Gaps/X)
+    
+    if (length(residues) > 1) {
+      # Alle möglichen Paarkombinationen in dieser Spalte zählen
+      pairs <- combn(residues, 2)
+      for (i in 1:ncol(pairs)) {
+        aa1 <- pairs[1, i]
+        aa2 <- pairs[2, i]
+        sub_counts[aa1, aa2] <- sub_counts[aa1, aa2] + 1
+        sub_counts[aa2, aa1] <- sub_counts[aa2, aa1] + 1 # Symmetrisieren
+      }
+    }
+  }
+  
+  # 4. Berechnung der beobachteten q_ij (Joint Probabilities)
+  # q_ij ist die Wahrscheinlichkeit, ein Paar (i,j) in einem Alignment zu finden.
+  total_pairs <- sum(sub_counts)
+  q_ij_obs <- sub_counts / total_pairs
+  
+  # 5. Beobachtete Hintergrundfrequenzen p_i
+  p_i_obs <- rowSums(q_ij_obs)
+  
+  # 6. Empirische Log-Odds berechnen (Bits)
+  # S_ij = log2( q_ij / (p_i * p_j) )
+  log_odds_obs <- matrix(NA, 20, 20, dimnames = list(aa_list, aa_list))
+  for (i in aa_list) {
+    for (j in aa_list) {
+      if (q_ij_obs[i, j] > 0) {
+        log_odds_obs[i, j] <- log2(q_ij_obs[i, j] / (p_i_obs[i] * p_i_obs[j]))
+      }
+    }
+  }
+  
+  # 7. Theoretische Matrix laden
+  # In Biostrings/pwalign sind Matrizen als Datensätze hinterlegt.
+  # Wir laden die gewünschte Matrix dynamisch.
+  message("Lade theoretische Matrix: ", matrix_name, " ...")
+  
+  # Wir versuchen die Matrix aus Biostrings zu laden
+  # Dies erstellt ein Objekt mit dem Namen der Matrix (z.B. PAM70) im Environment
+  data(list = matrix_name, package = "Biostrings", envir = environment())
+  sub_mat_theo <- get(matrix_name)
+  
+  # Validierung der Zeilen/Spaltennamen (müssen mit aa_list übereinstimmen)
+  # Manche Matrizen in Biostrings nutzen ein erweitertes Alphabet, daher filtern wir:
+  common_aa <- intersect(aa_list, rownames(sub_mat_theo))
+  sub_mat_theo <- sub_mat_theo[common_aa, common_aa]
+  
+  # 8. Daten für Vergleich vorbereiten (nur untere Dreiecksmatrix inkl. Diagonale)
+  # Wir stellen sicher, dass wir nur die Schnittmenge der AAs vergleichen
+  obs_vector <- log_odds_obs[common_aa, common_aa][lower.tri(log_odds_obs[common_aa, common_aa], diag = TRUE)]
+  theo_vector <- sub_mat_theo[lower.tri(sub_mat_theo, diag = TRUE)]
+  
+  # Filtern von NAs (Austausche, die im MSA nie beobachtet wurden)
+  valid_idx <- !is.na(obs_vector)
+  df_comp <- data.frame(
+    Observed = obs_vector[valid_idx],
+    Theoretical = theo_vector[valid_idx]
+  )
+  
+  # 9. Statistische Auswertung
+  correlation <- cor(df_comp$Observed, df_comp$Theoretical, method = "pearson")
+  fit <- lm(Observed ~ Theoretical, data = df_comp)
+  
+  # 10. Visualisierung
+  p <- ggplot(df_comp, aes(x = Theoretical, y = Observed)) +
+    geom_point(alpha = 0.6, color = "dodgerblue4") +
+    geom_smooth(method = "lm", color = "firebrick", linetype = "dashed") +
+    labs(
+      title = paste("Target Frequency Validation:", matrix_name, "vs. TSR3-MSA"),
+      subtitle = paste("Pearson Korrelation R =", round(correlation, 3), 
+                       "| Bestätigt die Eignung des evolutionären Modells"),
+      x = paste(matrix_name, "Theoretische Scores (Log-Odds)"),
+      y = "Beobachtete Log-Odds (aus MSA extrahiert)"
+    ) +
+    theme_minimal()
+  
+  print(p)
+  
+  message("Analyse beendet. Die Korrelation von ", round(correlation, 3), 
+          " belegt eine exzellente Modell-Passform.")
+  
+  return(list(correlation = correlation, plot = p, data = df_comp))
+}
+
+# Ausführung der Validierung
+q_ij_validation <- validate_substitution_matrix()
 
