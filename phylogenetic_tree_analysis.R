@@ -10,6 +10,7 @@ library(phytools)
 library(msa)
 library(readr)
 library(stringr)
+library(colorspace)
 
 # Select Working Directory ----
 wds <- data.frame(
@@ -185,3 +186,53 @@ cat("Wahrheit (Truth):", robustness_upgma$truth, "\n", file = "Results_Phylogene
 cat("Geschätztes Rho (Est Rho):", robustness_upgma$est_rho, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
 
 message("Robustheitsprüfung abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
+
+#========  5. Four-Point-Condition =======
+#Funktion Four-Point-Condition 
+
+check_four_point_condition <- function(dist_matrix, tol=1e-12) {
+  points <- rownames(dist_matrix)
+  combinations <- combn(points, 4)
+  
+  tests <- 0
+  violations <- 0
+  violating_quadruplets <- character(0)
+  
+  for (i in 1:ncol(combinations)) {
+    comb <- combinations[, i]
+    A <- comb[1]; B <- comb[2]; C <- comb[3]; D <- comb[4]
+    
+    d_AB <- dist_matrix[A, B]
+    d_AC <- dist_matrix[A, C]
+    d_AD <- dist_matrix[A, D]
+    d_BC <- dist_matrix[B, C]
+    d_BD <- dist_matrix[B, D]
+    d_CD <- dist_matrix[C, D]
+    
+    tests <- tests + 1
+    ok <- (d_AB+d_CD <= max(d_AC+d_BD, d_AD+d_BC) + tol) &&
+      (d_AC+d_BD <= max(d_AB+d_CD, d_AD+d_BC) + tol) &&
+      (d_AD+d_BC <= max(d_AB+d_CD, d_AC+d_BD) + tol)
+    
+    if (!ok) {
+      violations <- violations + 1
+    }
+  }
+  return(list(
+    tests = tests,
+    violations = violations,
+    additive = (violations == 0L),
+    violating_quadruplets = violating_quadruplets))
+}
+
+#Four-Point-Condition prüfen für dist_matrix_sq
+
+Four_Point_Condition_check <- check_four_point_condition(dist_matrix_sq, tol=0.1)
+
+#Ergebnisse anhängen
+cat("\nErgebnis Four-Point-Condition:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Tests:", Four_Point_Condition_check$tests, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Additivität:", Four_Point_Condition_check$additive, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Verletzungen:", Four_Point_Condition_check$violations, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+
+message("Four-Point-Condition getestet: Results_PhylogeneticTree/Ultrametric_Check.txt")
