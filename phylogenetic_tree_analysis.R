@@ -185,7 +185,28 @@ cat("\nRobustheit des UPGMA Baums:\n", file = "Results_PhylogeneticTree/Ultramet
 cat("Wahrheit (Truth):", robustness_upgma$truth, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
 cat("Geschätztes Rho (Est Rho):", robustness_upgma$est_rho, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
 
-message("Robustheitsprüfung abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
+message("Robustheitsprüfung UPGMA abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
+
+#Robustgeit berechnen (WPGMA)
+robustness_wpgma <- calculate_robustness(phylo_tree_wpgma, dist_matrix_sq, 1)
+
+#Ergebnisse anhängen
+cat("\nRobustheit des WPGMA Baums:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Wahrheit (Truth):", robustness_wpgma$truth, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Geschätztes Rho (Est Rho):", robustness_wpgma$est_rho, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+
+message("Robustheitsprüfung WPGMA abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
+
+#Robustheit berechnen (WARD)
+robustness_ward <- calculate_robustness(phylo_tree_ward, dist_matrix_sq, 1)
+
+#Ergebnisse anhängen
+cat("\nRobustheit des WARD Baums:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Wahrheit (Truth):", robustness_ward$truth, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+cat("Geschätztes Rho (Est Rho):", robustness_ward$est_rho, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+
+message("Robustheitsprüfung WARD abgeschlossen: Results_PhylogeneticTree/Ultrametric_Check.txt")
+
 
 #========  5. Four-Point-Condition =======
 #Funktion Four-Point-Condition 
