@@ -102,7 +102,7 @@ annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten
   
   # 4. Optional: Speichern
   if (create_csv) {
-    output_file <- "Results_BLAST/anotated_top_hits.csv"
+    output_file <- "Results_BLAST/anotated_top30_Blosum90.csv"
     write_csv(annotated_data, output_file)
     message("Datei gespeichert unter: ", output_file)
   }
@@ -113,7 +113,7 @@ annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten
 # Anotieren der Blast ergenisse mit Pfad zur FASTA-Datenbank und E-Value Schwellenwert
 # Ihr könnte die Ergebnisse in einer csv/ exel Datei speichern wenn create_csv = TRUE
 annotated_blast_results <- annotate_blast_results(
-  blast_results = blast_data_62,
+  blast_results = blast_data_70,
   e_value_threshold = 1e-160,
   create_csv = FALSE)
 
@@ -190,12 +190,46 @@ plot_bitscore_significance <- function(blast_data) {
 # "Problem" BLAST speichert nur signifikante Hits (datenbank sonst viel zu groß), liegen unsere Daten
 # wahrscheinlich immer noch weit rechts vom theoretischen Gumbel-Maximum (Rauschen).
 
-print(plot_score_gumbel(blast_data_30, lambda = 0.267, K = 0.041)) # Werte für PAM30 ggf. anpassen
+print(plot_score_gumbel(blast_data_30, lambda = 0.294, K = 0.110)) # Werte für PAM30 ggf. anpassen
 
 # 2. Signifikanz
 print(plot_bitscore_significance(annotated_blast_results))
 
 
+# ==== 1.2. Estimate Alignment Score Distribution (Vergleich Empirische CDF mit Theoretischer CDF) ====
+#anstatt histogramm vs. Gumbel
+
+plot_ECDF_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n = 156222) {
+
+  # Nur gültige Scores
+  scores_sorted <- sort(na.omit(blast_data$Score))
+  
+  # Empirische CDF
+  N_hits <- length(scores_sorted)
+  ecdf_values <- (1:N_hits) / N_hits
+  
+  plot(scores_sorted, ecdf_values,
+       main = "Empirical CDF of BLAST Raw Scores vs. Theoretical Gumbel CDF",
+       xlab = "Max Score",
+       ylab = "CDF")
+  
+  # Gumbel-Parameter
+  a_m <- log(K * m * n) / lambda
+  b <- 1 / lambda
+  
+  # Theoretische Gumbel-CDF
+  curve(pgumbel(x, loc = a_m, scale = b),
+        add = TRUE, col = "red", lwd = 2)
+}
+
+print(plot_ECDF_gumbel(blast_data_70, lambda = 0.294, K = 0.110))
+
+#Die empirische CDF der beobachteten BLAST-Raw-Scores liegt deutlich rechts
+#der theoretischen Gumbel-CDF des Nullmodells. 
+#Dies ist erwartbar, da BLAST nicht alle zufälligen Paaralignments reportet, 
+#sondern nur signifikante Treffer. Der Plot zeigt daher weniger einen 
+#Goodness-of-fit des Nullmodells als vielmehr, dass die beobachteten TSR3-Hits 
+#deutlich höhere Scores aufweisen als unter Zufall zu erwarten wäre.
 
 # ==== 2. Allgemiene Analyse für Wahl der Substitutionsmatrix ====
 # 1. identitäten und allgemeiner Vergeleich
@@ -396,7 +430,7 @@ message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
 #' @description Validiert die Wahl der Substitutionsmatrix (PAM70) durch Abgleich 
 #' der theoretischen Zielhäufigkeiten mit den empirisch im MSA beobachteten Mutationen.
 validate_substitution_matrix <- function(msa_path = "Results_MultibleSequenceAlign/msa_result.rds", 
-                                          matrix_name = "BLOSUM80") {
+                                          matrix_name = "BLOSUM90") {
   
   message("Starte statistische Validierung der ", matrix_name, "-Passform mittels Zielhäufigkeiten...")
   
