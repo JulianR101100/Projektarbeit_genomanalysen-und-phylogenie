@@ -257,3 +257,18 @@ cat("Additivität:", Four_Point_Condition_check$additive, "\n", file = "Results_
 cat("Verletzungen:", Four_Point_Condition_check$violations, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
 
 message("Four-Point-Condition getestet: Results_PhylogeneticTree/Ultrametric_Check.txt")
+
+#========= 6. NJ Tree =========
+#Erstellen und speichern des Baums
+
+pdf("Results_PhylogeneticTree/NJ_tree.pdf", width = 12, height = 12)
+nj_tree <- nj(dist_matrix_sq)
+plot(nj_tree, cex = 0.5,
+     type = "phylogram",
+     direction = "rightwards",
+     main = "Neighbor-Joining phylogenetic tree")
+edgelabels(round(nj_tree$edge.length,2),
+           bg="white", col="black", frame = "none",
+           cex=0.5, adj = c(0.5,0))
+dev.off()
+message("NJ_tree gespeichert: Results_PhylogeneticTree/NJ_tree.pdf")
