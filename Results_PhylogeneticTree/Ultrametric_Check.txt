@@ -1,7 +1,188 @@
-Ultrametrie-Eigenschaftsprüfung:
-Tests: 4060 
-Verletzungen: 3502 
+Ultrametric property checks for multiple tolerances
+ ===================================================
+
+Tolerance: 0.1 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 11
+Strict ultrametric: FALSE
+Violation rate (strict): 0.27%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 0
+Non-strict ultrametric: TRUE
+Violation rate (nonstrict): 0%
+
+
+Tolerance: 0.03 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 240
+Strict ultrametric: FALSE
+Violation rate (strict): 5.91%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 230
+Non-strict ultrametric: FALSE
+Violation rate (nonstrict): 5.67%
+
+
+Tolerance: 0.02 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 713
+Strict ultrametric: FALSE
+Violation rate (strict): 17.56%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 703
+Non-strict ultrametric: FALSE
+Violation rate (nonstrict): 17.32%
+
+
+Tolerance: 0.01 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 1883
+Strict ultrametric: FALSE
+Violation rate (strict): 46.38%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 1875
+Non-strict ultrametric: FALSE
+Violation rate (nonstrict): 46.18%
+
+
+Tolerance: 0.005 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 2940
+Strict ultrametric: FALSE
+Violation rate (strict): 72.41%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 2934
+Non-strict ultrametric: FALSE
+Violation rate (nonstrict): 72.27%
+
+
+Tolerance: 0.001 
+ ------------------------------
+Strict ultrametric test:
+Tests: 4060
+Violations: 3818
+Strict ultrametric: FALSE
+Violation rate (strict): 94.04%
+
+Non-strict ultrametric test:
+Tests: 4060
+Violations: 3818
+Non-strict ultrametric: FALSE
+Violation rate (nonstrict): 94.04%
+
+
 
 Robustheit des UPGMA Baums:
 Wahrheit (Truth): FALSE 
-Geschätztes Rho (Est Rho): 63.64526 
+Schätzwert des Verhältnisses (max. Abweichung zu kleinster Innenkante): 42.38271 
+
+Robustheit des WPGMA Baums:
+Wahrheit (Truth): FALSE 
+Schätzwert des Verhältnisses (max. Abweichung zu kleinster Innenkante): 27.17883 
+
+Robustheit des WARD Baums:
+Wahrheit (Truth): FALSE 
+Schätzwert des Verhältnisses (max. Abweichung zu kleinster Innenkante): 99.12513 
+
+
+===================================================
+Four-Point-Condition checks for multiple tolerances
+===================================================
+
+Tolerance: 0.01
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: FALSE
+Verletzungen: 9307
+Violation rate: 33.96%
+
+Tolerance: 0.02
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: FALSE
+Verletzungen: 2741
+Violation rate: 10%
+
+Tolerance: 0.04
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: FALSE
+Verletzungen: 364
+Violation rate: 1.33%
+
+Tolerance: 0.06
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: FALSE
+Verletzungen: 63
+Violation rate: 0.23%
+
+Tolerance: 0.1
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: TRUE
+Verletzungen: 0
+Violation rate: 0%
+
+Tolerance: 0.2
+------------------------------
+Ergebnis Four-Point-Condition:
+Tests: 27405
+Additivität: TRUE
+Verletzungen: 0
+Violation rate: 0%
+
+
+
+===================================================
+Robustness comparison across reconstruction algorithms
+===================================================
+rho used for all methods: 0.5
+
+Methods ranked BEST -> WORST by est_ratio (smaller = more robust)
+Method   | truth | est_ratio |    max_dist |         w0
+-------------------------------------------------------
+WPGMA    | truth=FALSE | est_ratio= 27.1788 | max_dist=  0.058593 | w0=  0.002156
+NJ       | truth=FALSE | est_ratio= 37.1081 | max_dist=  0.043573 | w0=  0.001174
+UPGMA    | truth=FALSE | est_ratio= 42.3827 | max_dist=  0.063070 | w0=  0.001488
+WARD     | truth=FALSE | est_ratio= 99.1251 | max_dist=  0.313291 | w0=  0.003161
+
+
+===================================================
+Cophenetic correlation: tree distances vs. original distances
+===================================================
+Higher correlation = better agreement between tree-implied distances and input distances.
+
+Method | correlation
+--------------------
+NJ    | 0.976927
+UPGMA | 0.951068
+WPGMA | 0.949885
+WARD  | 0.854188
+
+Ranking (best -> worst): NJ > UPGMA > WPGMA > WARD
