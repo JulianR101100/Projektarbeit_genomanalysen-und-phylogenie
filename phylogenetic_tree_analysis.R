@@ -87,7 +87,12 @@ check_strict_ultrametric_property <- function(dist_matrix, tol = 1e-12) {
     d1 <- d[1]; d2 <- d[2]; d3 <- d[3]
     
     # Kriterium: Die zwei größten Distanzen müssen gleich sein
-    is_strict_ultra <- (abs(d3 - d2) <= tol) && (d2 > d1 + tol)
+    is_strict_ultra <- (abs(d3 - d2) <= tol) && (d2 > d1 + 1e-6)
+    # d2 > d1 + tol liefert bei Wert 0,01 weniger Verletzungen als bei 0,1 
+    #macht mathematisch keinen Sinn macht da tol einmal Strenger wird (d3-d3)<=tol
+    #und einmnal entspannter bei d2>d1+tol (ist wiederspruch)
+    #Toleranz sollte eher vergleich der distanzen Beeinflussen weniger ob d2>d1 ist 
+    #(diese Bedingung muss egal wie für strickte Ultrametrie erfüllt sein)
     
     if (!is_strict_ultra) {
       violations <- violations + 1L
@@ -101,16 +106,116 @@ check_strict_ultrametric_property <- function(dist_matrix, tol = 1e-12) {
     violating_triplets = violating_triplets))
 }
 
+
+
+# ==== 2.2. Ultrametrie und Hierarchisches Clustering ====
+
+check_ultrametric_property <- function(dist_matrix, tol = 1e-12) {
+  points <- rownames(dist_matrix)
+  combinations <- combn(points, 3)
+  
+  tests <- 0L
+  violations <- 0L
+  violating_triplets <- character(0)
+  
+  for (i in 1:ncol(combinations)) {
+    comb <- combinations[, i]
+    A <- comb[1]; B <- comb[2]; C <- comb[3]
+    
+    # Extract distances
+    d_AB <- dist_matrix[A, B]
+    d_AC <- dist_matrix[A, C]
+    d_BC <- dist_matrix[B, C]
+    
+    tests <- tests + 1L
+    
+    # Ultrametric inequalities (all must hold)
+    ok <- (d_AB <= max(d_AC, d_BC) + tol) &&
+      (d_AC <= max(d_AB, d_BC) + tol) &&
+      (d_BC <= max(d_AB, d_AC) + tol)
+    
+    if (!ok) {
+      violations <- violations + 1L
+      violating_triplets <- c(violating_triplets, paste(A, B, C, sep = "-"))
+    }
+  }
+  
+  return(list(
+    tests = tests,
+    violations = violations,
+    ultrametric = (violations == 0L),
+    violating_triplets = violating_triplets))
+}
+
+
+# ======== 2.3. Ultrametric checks for multiple tolerances ========
+
 dist_msa_sq <- as.dist(dist_matrix_sq)
-res <- check_strict_ultrametric_property(dist_matrix_sq, tol = 0.1)
 
-# Ergebnisse speichern
-cat("Ultrametrie-Eigenschaftsprüfung:\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt")
-cat("Tests:", res$tests, "\nVerletzungen:", res$violations, "\n", file = "Results_PhylogeneticTree/Ultrametric_Check.txt", append = TRUE)
+tolerances <- c(0.1, 0.03, 0.02, 0.01, 0.005, 0.001)
+out_file <- "Results_PhylogeneticTree/Ultrametric_Check.txt"
+n_examples <- 5   # number of violating triplets to display
 
-message("Verletzungen der strikten Ultrametrie: ", res$violations)
+# Datei neu anlegen / überschreiben
+cat("Ultrametric property checks for multiple tolerances\n",
+    "===================================================\n\n",
+    file = out_file)
 
-# Hierarchisches Clustering (UPGMA, WPGMA, Ward)
+for (tol in tolerances) {
+  
+  strict_res <- check_strict_ultrametric_property(dist_matrix_sq, tol = tol)
+  nonstrict_res <- check_ultrametric_property(dist_matrix_sq, tol = tol)
+  
+  # Ergebnisse in Datei schreiben
+  cat("Tolerance:", tol, "\n",
+      "------------------------------\n",
+      file = out_file, append = TRUE)
+  
+  cat("Strict ultrametric test:\n",
+      "Tests: ", strict_res$tests, "\n",
+      "Violations: ", strict_res$violations, "\n",
+      "Strict ultrametric: ", strict_res$strict_ultrametric, "\n",
+      file = out_file, append = TRUE, sep = "")
+  
+  # if (length(strict_res$violating_triplets) > 0) {
+  #   n_show <- min(n_examples, length(strict_res$violating_triplets))
+  #   cat("First violating triplets (strict):\n",
+  #       paste(strict_res$violating_triplets[1:n_show], collapse = "\n"),
+  #       "\n",
+  #       file = out_file, append = TRUE)
+  # } else {
+  #   cat("First violating triplets (strict): none\n",
+  #       file = out_file, append = TRUE)
+  # }
+  
+  cat("\nNon-strict ultrametric test:\n",
+      "Tests: ", nonstrict_res$tests, "\n",
+      "Violations: ", nonstrict_res$violations, "\n",
+      "Non-strict ultrametric: ", nonstrict_res$ultrametric, "\n",
+      file = out_file, append = TRUE, sep = "")
+  
+  # if (length(nonstrict_res$violating_triplets) > 0) {
+  #   n_show <- min(n_examples, length(nonstrict_res$violating_triplets))
+  #   cat("First violating triplets (non-strict):\n",
+  #       paste(nonstrict_res$violating_triplets[1:n_show], collapse = "\n"),
+  #       "\n",
+  #       file = out_file, append = TRUE)
+  # } else {
+  #   cat("First violating triplets (non-strict): none\n",
+  #       file = out_file, append = TRUE)
+  # }
+  
+  cat("\n\n", file = out_file, append = TRUE)
+  
+  message("Tolerance ", tol,
+          ": strict violations = ", strict_res$violations,
+          ", non-strict violations = ", nonstrict_res$violations)
+}
+
+#Auskommentierte Bereiche für Angabe der Violating Triplets
+message("Ultrametric checks saved to: ", out_file)
+
+# ======== 2.4. Hierarchisches Clustering (UPGMA, WPGMA, Ward)========
 hc_upgma <- hclust(dist_msa_sq, method = "average")
 hc_wpgma <- hclust(dist_msa_sq, method = "mcquitty")
 hc_ward <- hclust(dist_msa_sq, method = "ward.D2")
