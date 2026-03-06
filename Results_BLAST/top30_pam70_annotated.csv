@@ -7,25 +7,25 @@ Rank,Accession_ID,Organism,Description,Alignment_length,Percent_identity,Gaps_nu
 6,37293_0:0042b5,Aotus nancymaae,18S rRNA aminocarboxypropyltransferase,312,91.667,0,1354,571,0
 7,9601_0:004059,Pongo abelii,18S rRNA aminocarboxypropyltransferase,312,94.551,0,1339,565,0
 8,31869_0:003945,Daubentonia madagascariensis,NA,314,85.35,5,1293,546,0
-9,61853_0:0039b7,Nomascus leucogenys,ribosome biogenesis protein TSR3 homolog,281,95.018,0,1284,542,1.19e-179
-10,30611_0:0020e4,Otolemur garnettii,ribosome biogenesis protein TSR3 homolog,312,82.372,0,1274,538,9.45e-177
-11,1868482_0:0042cb,Carlito syrichta,18S rRNA aminocarboxypropyltransferase,312,85.256,0,1249,527,2.58e-174
-12,89462_0:00506e,Bubalus bubalis,18S rRNA aminocarboxypropyltransferase,315,83.175,3,1237,522,2.87e-172
-13,9796_0:003007,Equus caballus,18S rRNA aminocarboxypropyltransferase,317,80.442,6,1236,522,4.62e-172
-14,9447_0:000d36,Lemur catta,18S rRNA aminocarboxypropyltransferase,312,83.333,3,1234,521,6.16e-172
-15,84702_0:004e66,Cervus hanglu yarkandensis,NA,315,83.81,3,1233,521,9.85e-172
-16,9823_0:001194,Sus scrofa,18S rRNA aminocarboxypropyltransferase,316,81.646,4,1233,521,1.22e-171
-17,29073_0:0022b5,Ursus maritimus,18S rRNA aminocarboxypropyltransferase,317,83.281,5,1232,520,1.85e-171
-18,30608_0:00388e,Microcebus murinus,18S rRNA aminocarboxypropyltransferase,314,83.758,5,1229,519,3.37e-171
-19,9460_0:003b9e,Cheirogaleus medius,NA,312,83.654,3,1225,517,1.44e-170
-20,9713_0:00269d,Leptonychotes weddellii,18S rRNA aminocarboxypropyltransferase,316,83.861,4,1221,516,1.09e-169
-21,43179_0:00484b,Ictidomys tridecemlineatus,18S rRNA aminocarboxypropyltransferase,312,80.128,4,1218,514,1.43e-169
-22,9925_0:004254,Capra hircus,18S rRNA aminocarboxypropyltransferase,313,81.789,1,1218,514,2.2e-169
-23,9940_0:004b05,Ovis aries,18S rRNA aminocarboxypropyltransferase isoform X1,312,81.41,0,1216,513,4.14e-169
-24,51338_0:0023ba,Castor canadensis,18S rRNA aminocarboxypropyltransferase,312,82.692,2,1211,511,2.04e-168
-25,9913_0:0047a3,Bos taurus,18S rRNA aminocarboxypropyltransferase,315,83.175,3,1205,509,2.7e-167
-26,9704_0:0031c0,Zalophus californianus,18S rRNA aminocarboxypropyltransferase,331,80.06,19,1202,508,2.94e-166
-27,55149_0:00528b,Sciurus vulgaris,18S rRNA aminocarboxypropyltransferase,314,81.529,6,1194,504,1.1e-165
-28,9755_0:00297d,Physeter catodon,18S rRNA aminocarboxypropyltransferase,316,80.696,11,1190,503,4.36e-165
-29,391180_0:003374,Enhydra lutris kenyoni,18S rRNA aminocarboxypropyltransferase,317,80.757,5,1188,502,1.99e-164
-30,2888765_0:0000f1,Gulo gulo luscus,TSR3,314,81.21,4,1183,500,7.46e-164
+9,61853_0:0039b7,Nomascus leucogenys,ribosome biogenesis protein TSR3 homolog,281,95.018,0,1284,542,1.1899999999999997e-179
+10,30611_0:0020e4,Otolemur garnettii,ribosome biogenesis protein TSR3 homolog,312,82.372,0,1274,538,9.449999999999998e-177
+11,1868482_0:0042cb,Carlito syrichta,18S rRNA aminocarboxypropyltransferase,312,85.256,0,1249,527,2.579999999999999e-174
+12,89462_0:00506e,Bubalus bubalis,18S rRNA aminocarboxypropyltransferase,315,83.175,3,1237,522,2.869999999999999e-172
+13,9796_0:003007,Equus caballus,18S rRNA aminocarboxypropyltransferase,317,80.442,6,1236,522,4.619999999999999e-172
+14,9447_0:000d36,Lemur catta,18S rRNA aminocarboxypropyltransferase,312,83.333,3,1234,521,6.159999999999998e-172
+15,84702_0:004e66,Cervus hanglu yarkandensis,NA,315,83.81,3,1233,521,9.849999999999997e-172
+16,9823_0:001194,Sus scrofa,18S rRNA aminocarboxypropyltransferase,316,81.646,4,1233,521,1.2199999999999997e-171
+17,29073_0:0022b5,Ursus maritimus,18S rRNA aminocarboxypropyltransferase,317,83.281,5,1232,520,1.8499999999999994e-171
+18,30608_0:00388e,Microcebus murinus,18S rRNA aminocarboxypropyltransferase,314,83.758,5,1229,519,3.369999999999999e-171
+19,9460_0:003b9e,Cheirogaleus medius,NA,312,83.654,3,1225,517,1.4399999999999995e-170
+20,9713_0:00269d,Leptonychotes weddellii,18S rRNA aminocarboxypropyltransferase,316,83.861,4,1221,516,1.0899999999999996e-169
+21,43179_0:00484b,Ictidomys tridecemlineatus,18S rRNA aminocarboxypropyltransferase,312,80.128,4,1218,514,1.4299999999999996e-169
+22,9925_0:004254,Capra hircus,18S rRNA aminocarboxypropyltransferase,313,81.789,1,1218,514,2.1999999999999992e-169
+23,9940_0:004b05,Ovis aries,18S rRNA aminocarboxypropyltransferase isoform X1,312,81.41,0,1216,513,4.1399999999999985e-169
+24,51338_0:0023ba,Castor canadensis,18S rRNA aminocarboxypropyltransferase,312,82.692,2,1211,511,2.0399999999999993e-168
+25,9913_0:0047a3,Bos taurus,18S rRNA aminocarboxypropyltransferase,315,83.175,3,1205,509,2.6999999999999993e-167
+26,9704_0:0031c0,Zalophus californianus,18S rRNA aminocarboxypropyltransferase,331,80.06,19,1202,508,2.939999999999999e-166
+27,55149_0:00528b,Sciurus vulgaris,18S rRNA aminocarboxypropyltransferase,314,81.529,6,1194,504,1.0999999999999997e-165
+28,9755_0:00297d,Physeter catodon,18S rRNA aminocarboxypropyltransferase,316,80.696,11,1190,503,4.359999999999999e-165
+29,391180_0:003374,Enhydra lutris kenyoni,18S rRNA aminocarboxypropyltransferase,317,80.757,5,1188,502,1.9899999999999996e-164
+30,2888765_0:0000f1,Gulo gulo luscus,TSR3,314,81.21,4,1183,500,7.459999999999998e-164

@@ -427,115 +427,120 @@ message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
 
 # ==== 6. Validierung der Zielhäufigkeiten (q_ij Analyse) ====
 
-#' @description Validiert die Wahl der Substitutionsmatrix (PAM70) durch Abgleich 
-#' der theoretischen Zielhäufigkeiten mit den empirisch im MSA beobachteten Mutationen.
-validate_substitution_matrix <- function(msa_path = "Results_MultibleSequenceAlign/msa_result.rds", 
-                                          matrix_name = "BLOSUM90") {
+#' Hilfsfunktion zum Einlesen von Matrix-Dateien (z.B. BLSOUM90.txt) mit KI erstellt
+read_matrix_file <- function(file_path) {
+  lines <- readLines(file_path)
+  # Header-Zeile mit AA-Labels finden
+  header_idx <- grep("^[ ]+A  B  C", lines)
+  if (length(header_idx) == 0) header_idx <- grep("^[ ]+A  R  N", lines)
   
-  message("Starte statistische Validierung der ", matrix_name, "-Passform mittels Zielhäufigkeiten...")
+  labels <- strsplit(trimws(lines[header_idx]), "[ ]+")[[1]]
+  data_lines <- lines[(header_idx + 1):length(lines)]
+  data_lines <- data_lines[grepl("^[A-Z*]", data_lines)]
   
-  # 1. MSA laden (Unterstützung für .rds Objekte aus dem msa-Paket)
-  if (!file.exists(msa_path)) {
-    stop("MSA Datei nicht gefunden. Bitte erst multiple_sequence_alignment.R ausführen.")
+  mat <- matrix(NA, nrow = length(data_lines), ncol = length(labels))
+  for (i in seq_along(data_lines)) {
+    nums <- strsplit(trimws(substr(data_lines[i], 2, nchar(data_lines[i]))), "[ ]+")[[1]]
+    mat[i, ] <- as.numeric(nums)
   }
-  msa_res <- readRDS(msa_path)
-  msa_mat <- as.matrix(msa_res)
+  rownames(mat) <- substr(data_lines, 1, 1)
+  colnames(mat) <- labels
+  return(mat)
+}
+
+#' @description Validiert die Wahl der Substitutionsmatrix durch Abgleich 
+#' der theoretischen Zielhäufigkeiten mit den empirisch im MSA beobachteten Mutationen.
+validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   
-  # 2. Aminosäure-Liste (Standard 20)
+  message("Starte statistische Validierung für: ", 
+          if(is.matrix(matrix_source)) "Manuelle Matrix" else matrix_source)
+  
+  msa_mat <- as.matrix(msa_obj)
   aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   
-  # 3. Substitutions-Zählmatrix initialisieren
-  # Wir zählen, wie oft jedes AA-Paar in den Spalten des MSA vorkommt.
   sub_counts <- matrix(0, nrow = 20, ncol = 20, dimnames = list(aa_list, aa_list))
-  
-  message("Berechne beobachtete Substitutionen aus MSA-Spalten...")
   for (col in 1:ncol(msa_mat)) {
     residues <- msa_mat[, col]
-    residues <- residues[residues %in% aa_list] # Nur Standard-AAs berücksichtigen (keine Gaps/X)
-    
+    residues <- residues[residues %in% aa_list]
     if (length(residues) > 1) {
-      # Alle möglichen Paarkombinationen in dieser Spalte zählen
       pairs <- combn(residues, 2)
       for (i in 1:ncol(pairs)) {
-        aa1 <- pairs[1, i]
-        aa2 <- pairs[2, i]
+        aa1 <- pairs[1, i]; aa2 <- pairs[2, i]
         sub_counts[aa1, aa2] <- sub_counts[aa1, aa2] + 1
-        sub_counts[aa2, aa1] <- sub_counts[aa2, aa1] + 1 # Symmetrisieren
+        sub_counts[aa2, aa1] <- sub_counts[aa2, aa1] + 1
       }
     }
   }
   
-  # 4. Berechnung der beobachteten q_ij (Joint Probabilities)
-  # q_ij ist die Wahrscheinlichkeit, ein Paar (i,j) in einem Alignment zu finden.
-  total_pairs <- sum(sub_counts)
-  q_ij_obs <- sub_counts / total_pairs
-  
-  # 5. Beobachtete Hintergrundfrequenzen p_i
+  q_ij_obs <- sub_counts / sum(sub_counts)
   p_i_obs <- rowSums(q_ij_obs)
-  
-  # 6. Empirische Log-Odds berechnen (Bits)
-  # S_ij = log2( q_ij / (p_i * p_j) )
   log_odds_obs <- matrix(NA, 20, 20, dimnames = list(aa_list, aa_list))
   for (i in aa_list) {
     for (j in aa_list) {
-      if (q_ij_obs[i, j] > 0) {
+      if (q_ij_obs[i, j] > 0 && p_i_obs[i] > 0 && p_i_obs[j] > 0) {
         log_odds_obs[i, j] <- log2(q_ij_obs[i, j] / (p_i_obs[i] * p_i_obs[j]))
       }
     }
   }
   
-  # 7. Theoretische Matrix laden
-  # In Biostrings/pwalign sind Matrizen als Datensätze hinterlegt.
-  # Wir laden die gewünschte Matrix dynamisch.
-  message("Lade theoretische Matrix: ", matrix_name, " ...")
+  # Matrix-Quelle bestimmen
+  if (is.matrix(matrix_source)) {
+    sub_mat_theo <- matrix_source
+  } else if (file.exists(matrix_source)) {
+    sub_mat_theo <- read_matrix_file(matrix_source)
+  } else {
+    data(list = matrix_source, package = "Biostrings", envir = environment())
+    sub_mat_theo <- get(matrix_source)
+  }
   
-  # Wir versuchen die Matrix aus Biostrings zu laden
-  # Dies erstellt ein Objekt mit dem Namen der Matrix (z.B. PAM70) im Environment
-  data(list = matrix_name, package = "Biostrings", envir = environment())
-  sub_mat_theo <- get(matrix_name)
-  
-  # Validierung der Zeilen/Spaltennamen (müssen mit aa_list übereinstimmen)
-  # Manche Matrizen in Biostrings nutzen ein erweitertes Alphabet, daher filtern wir:
   common_aa <- intersect(aa_list, rownames(sub_mat_theo))
-  sub_mat_theo <- sub_mat_theo[common_aa, common_aa]
-  
-  # 8. Daten für Vergleich vorbereiten (nur untere Dreiecksmatrix inkl. Diagonale)
-  # Wir stellen sicher, dass wir nur die Schnittmenge der AAs vergleichen
   obs_vector <- log_odds_obs[common_aa, common_aa][lower.tri(log_odds_obs[common_aa, common_aa], diag = TRUE)]
-  theo_vector <- sub_mat_theo[lower.tri(sub_mat_theo, diag = TRUE)]
+  theo_vector <- sub_mat_theo[common_aa, common_aa][lower.tri(sub_mat_theo[common_aa, common_aa], diag = TRUE)]
   
-  # Filtern von NAs (Austausche, die im MSA nie beobachtet wurden)
   valid_idx <- !is.na(obs_vector)
-  df_comp <- data.frame(
-    Observed = obs_vector[valid_idx],
-    Theoretical = theo_vector[valid_idx]
-  )
+  df_comp <- data.frame(Observed = obs_vector[valid_idx], Theoretical = theo_vector[valid_idx])
   
-  # 9. Statistische Auswertung
-  correlation <- cor(df_comp$Observed, df_comp$Theoretical, method = "pearson")
-  fit <- lm(Observed ~ Theoretical, data = df_comp)
+  correlation <- cor(df_comp$Observed, df_comp$Theoretical)
   
-  # 10. Visualisierung
   p <- ggplot(df_comp, aes(x = Theoretical, y = Observed)) +
     geom_point(alpha = 0.6, color = "dodgerblue4") +
     geom_smooth(method = "lm", color = "firebrick", linetype = "dashed") +
-    labs(
-      title = paste("Target Frequency Validation:", matrix_name, "vs. TSR3-MSA"),
-      subtitle = paste("Pearson Korrelation R =", round(correlation, 3), 
-                       "| Bestätigt die Eignung des evolutionären Modells"),
-      x = paste(matrix_name, "Theoretische Scores (Log-Odds)"),
-      y = "Beobachtete Log-Odds (aus MSA extrahiert)"
-    ) +
+    labs(title = paste("Validation:", if(is.matrix(matrix_source)) "Manual" else matrix_source),
+         subtitle = paste("Pearson R =", round(correlation, 4))) +
     theme_minimal()
   
-  print(p)
-  
-  message("Analyse beendet. Die Korrelation von ", round(correlation, 3), 
-          " belegt eine exzellente Modell-Passform.")
-  
-  return(list(correlation = correlation, plot = p, data = df_comp))
+  return(list(correlation = correlation, plot = p))
 }
 
-# Ausführung der Validierung
-q_ij_validation <- validate_substitution_matrix()
+# ==== 7. Kompakter Cross-Check Workflow (BLOSUM90 Beispiel) ====
+
+library(msa)
+# 1. MSA für BLOSUM90 on-the-fly erstellen
+# Top 30 IDs aus BLOSUM90 BLAST Ergebnissen
+top30_b90_ids <- head(blast_data_90$Accession_ID, 30)
+
+# Sequenzen aus DB laden
+db_seqs <- readAAStringSet("Data/Rohdaten/database.fasta")
+names(db_seqs) <- word(names(db_seqs), 1)
+top30_b90_seqs <- db_seqs[top30_b90_ids]
+
+# Schnelles MSA (nur im Arbeitsspeicher)
+msa_b90 <- msa(top30_b90_seqs, method = "ClustalW")
+msa_pam70 <- readRDS("Results_MultibleSequenceAlign/msa_result.rds")
+
+# 2. Kreuz-Validierung
+# MSA(B90) gegen Matrix(B90)
+val_b90_self <- validate_substitution_matrix(msa_pam70, "Data/BLSOUM90.txt")
+
+# MSA(B90) gegen Matrix(PAM70)
+val_b90_vs_pam <- validate_substitution_matrix(msa_b90, "PAM70")
+
+print(val_b90_self$plot)
+print(val_b90_vs_pam$plot)
+
+message("Ergebnis des Cross-Checks (MSA auf Basis von BLOSUM90):",
+        "\nKorrelation mit BLOSUM90 Matrix: ", round(val_b90_self$correlation, 4),
+        "\nKorrelation mit PAM70 Matrix:    ", round(val_b90_vs_pam$correlation, 4))
+
+
 
