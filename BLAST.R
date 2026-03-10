@@ -222,7 +222,7 @@ plot_ECDF_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n =
         add = TRUE, col = "red", lwd = 2)
 }
 
-print(plot_ECDF_gumbel(blast_data_70, lambda = 0.294, K = 0.110))
+# print(plot_ECDF_gumbel(blast_data_70, lambda = 0.294, K = 0.110))
 
 #Die empirische CDF der beobachteten BLAST-Raw-Scores liegt deutlich rechts
 #der theoretischen Gumbel-CDF des Nullmodells. 
@@ -448,7 +448,7 @@ read_matrix_file <- function(file_path) {
   return(mat)
 }
 
-#' @description Validiert die Wahl der Substitutionsmatrix durch Abgleich 
+#' Validiert die Wahl der Substitutionsmatrix durch Abgleich 
 #' der theoretischen Zielhäufigkeiten mit den empirisch im MSA beobachteten Mutationen.
 validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   
@@ -483,7 +483,7 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
     }
   }
   
-  # Matrix-Quelle bestimmen
+  # Matrix-Quelle bestimmen (KI)
   if (is.matrix(matrix_source)) {
     sub_mat_theo <- matrix_source
   } else if (file.exists(matrix_source)) {
