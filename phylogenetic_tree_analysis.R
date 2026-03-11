@@ -245,7 +245,7 @@ dev.off()
 message("Phylogenetische Bäume gespeichert: Results_PhylogeneticTree/Phylogenetic_Trees.pdf")
 
 # Tanglegrams (Baumvergleiche) speichern
-pdf("Results_PhylogeneticTree/Tree_Comparisons.pdf", width = 12, height = 8, dpi = 600)
+pdf("Results_PhylogeneticTree/Tree_Comparisons.pdf", width = 12, height = 8)
 
 # UPGMA vs WPGMA
 phylo_list_upgma_wpgma <- dendlist(as.dendrogram(hc_upgma), as.dendrogram(hc_wpgma))

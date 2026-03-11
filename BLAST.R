@@ -525,12 +525,12 @@ names(db_seqs) <- word(names(db_seqs), 1)
 top30_b90_seqs <- db_seqs[top30_b90_ids]
 
 # Schnelles MSA (nur im Arbeitsspeicher)
-msa_b90 <- msa(top30_b90_seqs, method = "ClustalW")
+msa_b90 <- msa(top30_b90_seqs, method = "ClustalW", substitutionMatrix = "blosum")
 msa_pam70 <- readRDS("Results_MultibleSequenceAlign/msa_result.rds")
 
 # 2. Kreuz-Validierung
 # MSA(B90) gegen Matrix(B90)
-val_b90_self <- validate_substitution_matrix(msa_pam70, "Data/BLSOUM90.txt")
+val_b90_self <- validate_substitution_matrix(msa_b90, "Data/BLOSUM90.txt")
 
 # MSA(B90) gegen Matrix(PAM70)
 val_b90_vs_pam <- validate_substitution_matrix(msa_b90, "PAM70")
