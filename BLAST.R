@@ -36,7 +36,7 @@ for (i in seq_len(nrow(wds))) {
 }
 rm(wds, i)
 
-# ==== 0.1 Blast Ergebnisse Einlesen (verschiedene Substitutionsmatritzen) ====
+# ==== 0.1.Blast Ergebnisse Einlesen (verschiedene Substitutionsmatritzen) ====
 
 # BLOSUM 62
 blast_data_62 <- read.table("Data/query_seq_blast_BLOSUM62.blast")
@@ -64,7 +64,7 @@ colnames(blast_data_30) <- c("Accession_ID", "Alignment_length", "Percent_identi
                              "Gaps_number", "Score", "Bit_score", "E_value")
 
 
-# ==== 0.2 Daten Anotieren =====
+# ==== 0.2.Daten Anotieren =====
 annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten/database.fasta", 
                                    e_value_threshold, create_csv = FALSE) {
   
@@ -125,7 +125,7 @@ blast_data_30[blast_data_30$Alignment_length > 312, ]
 # Gen ist sehr gut konserviert.  nur zwei Primaten (9, 18) mit gaps (alignmentlen > 312)
 top30_identity[top30_identity$Alignment_length > 312, c("Organism", "Percent_identity", "Alignment_length", "E_value")]
 
-# ==== 1. Blast Ergebnisse Visualisieren ====
+# ==== 1.  Blast Ergebnisse Visualisieren ====
 
 #' Plot: Empirische Score-Verteilung vs. Theoretische Gumbel-Verteilung
 #' @param lambda (Standard für BLOSUM62: 0.267)
@@ -166,6 +166,7 @@ plot_score_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n 
 }
 
 #' Plot: Bit-Score vs. E-Value (Signifikanz-Check)
+#' @param blast_data
 #' @description Zeigt den logarithmischen Zusammenhang zwischen Score und E-Value.
 #' Es sollte eine perfekte Gerade entstehen.
 plot_bitscore_significance <- function(blast_data) {
@@ -196,7 +197,7 @@ print(plot_score_gumbel(blast_data_30, lambda = 0.294, K = 0.110)) # Werte für 
 print(plot_bitscore_significance(annotated_blast_results))
 
 
-# ==== 1.2. Estimate Alignment Score Distribution (Vergleich Empirische CDF mit Theoretischer CDF) ====
+# ==== 1.2.Estimate Alignment Score Distribution (Vergleich Empirische CDF mit Theoretischer CDF) ====
 #anstatt histogramm vs. Gumbel
 
 plot_ECDF_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n = 156222) {
@@ -231,7 +232,7 @@ plot_ECDF_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n =
 #Goodness-of-fit des Nullmodells als vielmehr, dass die beobachteten TSR3-Hits 
 #deutlich höhere Scores aufweisen als unter Zufall zu erwarten wäre.
 
-# ==== 2. Allgemiene Analyse für Wahl der Substitutionsmatrix ====
+# ==== 2.  Allgemiene Analyse für Wahl der Substitutionsmatrix ====
 # 1. identitäten und allgemeiner Vergeleich
 calc_mean_identity <- function(blast_data) {
   mean_identity <- mean(blast_data$Percent_identity)
@@ -272,7 +273,7 @@ message("Durchschnittlicher Bit-Score (Hits 2-30):",
         "\nPAM30:    ", get_mean_bitscore_top30(blast_data_30),
         "\nPAM70:    ", get_mean_bitscore_top30(blast_data_70))
 
-# ==== 3. Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
+# ==== 3.  Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
 # 2. Definition der Theoretischen Entropie (H)
 # Werte basierend auf Literatur (Altschul et al. / NCBI Dokumentation).
 # H (in Bits) ist ein Maß für den Informationsgehalt der Matrix pro alignierter Position.
@@ -287,17 +288,13 @@ matrix_entropy <- data.frame(
 # 2. Funktion zur Berechnung der Observed Bits per Residue
 # Wir prüfen, wie viel Information wir tatsächlich pro Position extrahieren konnten.
 calculate_observed_entropy <- function(blast_data, matrix_name) {
-  # Wir betrachten die Top 30 Hits (Orthologe + evtl. Paraloge/Isoformen)
-  # Um robust zu sein, nehmen wir die tatsächlichen Top 30 des jeweiligen Laufs.
-  top30 <- head(blast_data, 30)
-  
+  # Wir betrachten die übergebenen Daten (z.B. Top 30 oder den gesamten Datensatz)
   # Berechnung: Bits per Residue = BitScore / Alignment Länge
   # Wenn die Matrix gut passt, sollte dieser Wert nahe an der theoretischen Entropie (H) liegen.
-  # Ist er viel niedriger, bestraft die Matrix Mismatches/Gaps zu hart -> Matrix ist zu streng.
-  top30$Bits_per_Residue <- top30$Bit_score / top30$Alignment_length
+  blast_data$Bits_per_Residue <- blast_data$Bit_score / blast_data$Alignment_length
   
-  # Durchschnitt über die Top 30
-  mean_obs <- mean(top30$Bits_per_Residue, na.rm = TRUE)
+  # Durchschnitt über die Daten
+  mean_obs <- mean(blast_data$Bits_per_Residue, na.rm = TRUE)
   
   return(data.frame(
     Matrix = matrix_name,
@@ -305,13 +302,13 @@ calculate_observed_entropy <- function(blast_data, matrix_name) {
   ))
 }
 
-# Daten aggregieren
+# Daten aggregieren für Top 500
 entropy_comparison <- rbind(
-  calculate_observed_entropy(blast_data_30, "PAM30"),
-  calculate_observed_entropy(blast_data_70, "PAM70"),
-  calculate_observed_entropy(blast_data_90, "BLOSUM90"),
-  calculate_observed_entropy(blast_data_80, "BLOSUM80"),
-  calculate_observed_entropy(blast_data_62, "BLOSUM62")
+  calculate_observed_entropy(head(blast_data_30, 100), "PAM30"),
+  calculate_observed_entropy(head(blast_data_70, 100), "PAM70"),
+  calculate_observed_entropy(head(blast_data_90, 100), "BLOSUM90"),
+  calculate_observed_entropy(head(blast_data_80, 100), "BLOSUM80"),
+  calculate_observed_entropy(head(blast_data_62, 100), "BLOSUM62")
 )
 
 # Merge mit theoretischen Werten
@@ -341,7 +338,7 @@ plot_data$Matrix <- factor(plot_data$Matrix, levels = c("PAM30", "PAM70", "BLOSU
 ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(
-    title = "Matrix-Passform: Theorie vs. Praxis",
+    title = "Matrix-Passform (Top ....): Theorie vs. Praxis",
     subtitle = "Vergleich der relativen Entropie (H) mit den tatsächlich erzielten Bits/Residue.\nIst Observed << Theoretical, ist die Matrix zu streng (viele Strafen).",
     y = "Bits per Residue",
     x = "Substitutionsmatrix",
@@ -352,25 +349,41 @@ ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
                     labels = c("Theoretisches H (Max)", "Beobachtet (Top 30 Avg)"))
 
 
-# ==== 4. Validierung der Hintergrundfrequenzen (Compositional Check) ====
+# ==== 4.  Validierung der Hintergrundfrequenzen (Compositional Check) ====
+
+#' Berechnet die Hintergrundfrequenzen der Aminosäuren aus einem MSA oder einer Sequenz
+calculate_background_frequencies <- function(x) {
+  aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
+  
+  if (inherits(x, "MsaAAMultipleAlignment") || inherits(x, "AAMultipleAlignment")) {
+    raw_data <- as.matrix(unmasked(x))
+  } else {
+    raw_data <- as.character(x)
+  }
+  
+  counts <- table(factor(raw_data[raw_data %in% aa_list], levels = aa_list))
+  return(as.numeric(counts / sum(counts)))
+}
 
 # 1. Query-Sequenz einlesen
 query_seq <- readAAStringSet("Data/Rohdaten/query_sequence.fasta")
 
 # 2. Beobachtete Frequenzen (p_i) berechnen
-as_freq <- alphabetFrequency(query_seq, as.prob = TRUE)[1, 1:20]
+as_freq <- calculate_background_frequencies(query_seq)
 
 # 3. Standard-Frequenzen (Robinson-Robinson Modell, Grundlage vieler Matrizen)
 std_freq <- c(A=0.0825, R=0.0553, N=0.0406, D=0.0545, C=0.0137, Q=0.0393, 
               E=0.0675, G=0.0707, H=0.0227, I=0.0596, L=0.0966, K=0.0584, 
               M=0.0242, F=0.0386, P=0.0470, S=0.0656, T=0.0534, W=0.0108, 
               Y=0.0292, V=0.0687)
+# Korrektur kleiner Tippfehler in Namen (f -> F)
+names(std_freq) <- toupper(names(std_freq))
 
 # 4. Vergleich & Korrelation (Prüfung auf ungewöhnliche Komposition)
-comp_check <- data.frame(AA = names(std_freq), Observed = as.numeric(as_freq[names(std_freq)]), Standard = std_freq)
+comp_check <- data.frame(AA = names(std_freq), Observed = as_freq, Standard = std_freq)
 rho <- cor(comp_check$Observed, comp_check$Standard)
 
-message("Die Korrelation der Aminosäure-Zusammensetzung beträgt:", round(rho, 3) , "% Ein hoher Wert > 0.9 bestätigt die Eignung der Standard-Matrizen)")
+message("Die Korrelation der Aminosäure-Zusammensetzung beträgt: ", round(rho, 3))
 comp_check_sorted <- comp_check %>% mutate(Diff = Observed - Standard) %>% arrange(desc(Diff))
 
 # FAZIT: 
@@ -378,7 +391,7 @@ comp_check_sorted <- comp_check %>% mutate(Diff = Observed - Standard) %>% arran
 # Da unser TSR3 Protein hoch konserviert ist, erreichen wir auch empirisch sehr hohe Werte.
 # Wir nutzen also PAM70, um die maximale Information aus den Alignments zu ziehen.
 
-# ==== 5. Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
+# ==== 5.  Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
 # 1. Anotieren der PAM70 Ergebnisse
 pam70_annotated <- annotate_blast_results(
   blast_results = blast_data_70,
@@ -425,7 +438,7 @@ writeXStringSet(top30_seqs_final, fasta_output_path)
 message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
 
 
-# ==== 6. Validierung der Zielhäufigkeiten (q_ij Analyse) ====
+# ==== 6.  Validierung der Zielhäufigkeiten (q_ij Analyse) ====
 
 #' Hilfsfunktion zum Einlesen von Matrix-Dateien (z.B. BLSOUM90.txt) mit KI erstellt
 read_matrix_file <- function(file_path) {
@@ -455,25 +468,39 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   message("Starte statistische Validierung für: ", 
           if(is.matrix(matrix_source)) "Manuelle Matrix" else matrix_source)
   
-  msa_mat <- as.matrix(msa_obj)
+  msa_mat <- as.matrix(unmasked(msa_obj))
   aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   
+  # Optimierte Zählung der Austausche (Frequenz-basiert statt paarweise Iteration)
   sub_counts <- matrix(0, nrow = 20, ncol = 20, dimnames = list(aa_list, aa_list))
+  
   for (col in 1:ncol(msa_mat)) {
     residues <- msa_mat[, col]
-    residues <- residues[residues %in% aa_list]
-    if (length(residues) > 1) {
-      pairs <- combn(residues, 2)
-      for (i in 1:ncol(pairs)) {
-        aa1 <- pairs[1, i]; aa2 <- pairs[2, i]
-        sub_counts[aa1, aa2] <- sub_counts[aa1, aa2] + 1
-        sub_counts[aa2, aa1] <- sub_counts[aa2, aa1] + 1
-      }
+    # Filterung auf valide Aminosäuren
+    valid_residues <- residues[residues %in% aa_list]
+    
+    if (length(valid_residues) > 1) {
+      # Frequenzen der AS in dieser Spalte
+      counts <- table(factor(valid_residues, levels = aa_list))
+      counts_vec <- as.numeric(counts)
+      
+      # Äußeres Produkt berechnet alle Kombinationen: counts[i] * counts[j]
+      # Dies entspricht exakt der Anzahl der Paare (i, j)
+      col_sub_matrix <- outer(counts_vec, counts_vec)
+      
+      # Korrektur der Diagonale: Ein Aminosäure-Zeichen kann nicht mit sich selbst 
+      # an derselben Position gepaart werden (n * (n-1) statt n * n)
+      diag(col_sub_matrix) <- counts_vec * (counts_vec - 1)
+      
+      sub_counts <- sub_counts + col_sub_matrix
     }
   }
   
+  # Normalisierung zu Wahrscheinlichkeiten q_ij
   q_ij_obs <- sub_counts / sum(sub_counts)
   p_i_obs <- rowSums(q_ij_obs)
+  
+  # Berechnung der Log-Odds Verhältnisse (Observed Matrix)
   log_odds_obs <- matrix(NA, 20, 20, dimnames = list(aa_list, aa_list))
   for (i in aa_list) {
     for (j in aa_list) {
@@ -483,36 +510,40 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
     }
   }
   
-  # Matrix-Quelle bestimmen (KI)
+  # Matrix-Quelle bestimmen
   if (is.matrix(matrix_source)) {
     sub_mat_theo <- matrix_source
   } else if (file.exists(matrix_source)) {
     sub_mat_theo <- read_matrix_file(matrix_source)
   } else {
+    # Dynamisches Laden aus Biostrings/pwalign
     data(list = matrix_source, package = "Biostrings", envir = environment())
     sub_mat_theo <- get(matrix_source)
   }
   
+  # Korrelation berechnen (nur untere Dreiecksmatrix inkl. Diagonale)
   common_aa <- intersect(aa_list, rownames(sub_mat_theo))
   obs_vector <- log_odds_obs[common_aa, common_aa][lower.tri(log_odds_obs[common_aa, common_aa], diag = TRUE)]
   theo_vector <- sub_mat_theo[common_aa, common_aa][lower.tri(sub_mat_theo[common_aa, common_aa], diag = TRUE)]
   
-  valid_idx <- !is.na(obs_vector)
+  valid_idx <- !is.na(obs_vector) & !is.na(theo_vector)
   df_comp <- data.frame(Observed = obs_vector[valid_idx], Theoretical = theo_vector[valid_idx])
   
   correlation <- cor(df_comp$Observed, df_comp$Theoretical)
   
   p <- ggplot(df_comp, aes(x = Theoretical, y = Observed)) +
-    geom_point(alpha = 0.6, color = "dodgerblue4") +
-    geom_smooth(method = "lm", color = "firebrick", linetype = "dashed") +
+    geom_point(alpha = 0.5, color = "dodgerblue4") +
+    geom_smooth(method = "lm", color = "firebrick", linetype = "dashed", formula = y ~ x) +
     labs(title = paste("Validation:", if(is.matrix(matrix_source)) "Manual" else matrix_source),
-         subtitle = paste("Pearson R =", round(correlation, 4))) +
+         subtitle = paste("Pearson R =", round(correlation, 4)),
+         x = "Theoretical Log-Odds (Matrix)",
+         y = "Empirical Log-Odds (MSA)") +
     theme_minimal()
   
-  return(list(correlation = correlation, plot = p))
+  return(list(correlation = correlation, plot = p, q_ij = q_ij_obs))
 }
 
-# ==== 7. Kompakter Cross-Check Workflow (BLOSUM90 Beispiel) ====
+# ==== 7.  Kompakter Cross-Check Workflow (BLOSUM90 Beispiel) ====
 
 library(msa)
 # 1. MSA für BLOSUM90 on-the-fly erstellen
@@ -543,4 +574,54 @@ message("Ergebnis des Cross-Checks (MSA auf Basis von BLOSUM90):",
         "\nKorrelation mit PAM70 Matrix:    ", round(val_b90_vs_pam$correlation, 4))
 
 
+# ==== 8.  Globale Analyse (Gesamter Datensatz) ====
+
+message("Starte globale Analyse für alle BLAST-Treffer (~500 Sequenzen)...")
+
+# 1. Alle Treffer annotieren (E-Value <= 1e-10 für biologische Relevanz)
+all_hits_annotated <- annotate_blast_results(
+  blast_results = blast_data_70,
+  e_value_threshold = 1e-10, 
+  create_csv = FALSE
+)
+
+# 2. Globale Entropie-Analyse
+global_entropy <- calculate_observed_entropy(all_hits_annotated, "PAM70 (Global)")
+message("Globale beobachtete Entropie: ", global_entropy$Observed_Bits_per_Residue)
+
+# 3. Sequenzen für den gesamten Datensatz extrahieren
+all_ids <- all_hits_annotated$Accession_ID
+db_all <- readAAStringSet("Data/Rohdaten/database.fasta")
+names(db_all) <- word(names(db_all), 1)
+all_seqs <- db_all[all_ids]
+
+# 4. Globales MSA (Achtung: Rechenzeit ca. 1-3 Minuten)
+msa_all <- msa(all_seqs, method = "ClustalW", substitutionMatrix = "blosum")
+
+# 5. Globale Validierung der Zielhäufigkeiten
+val_global_70 <- validate_substitution_matrix(msa_all, "PAM70")
+val_global_90 <- validate_substitution_matrix(msa_all, "Data/BLOSUM90.txt")
+print(val_global_70$plot)
+print(val_global_90$plot)
+
+# Weitere
+val_global_80 <- validate_substitution_matrix(msa_all, "BLOSUM80")
+val_global_62 <- validate_substitution_matrix(msa_all, "BLOSUM62")
+val_global_30 <- validate_substitution_matrix(msa_all, "PAM30")
+
+# 6. Globale Hintergrundfrequenzen (Validierung des Protein-Pools)
+global_p_i <- calculate_background_frequencies(msa_all)
+comp_check_global <- data.frame(AA = names(std_freq), Global_Observed = global_p_i, Standard = std_freq)
+rho_global <- cor(comp_check_global$Global_Observed, comp_check_global$Standard)
+message("Korrelation (Globaler Pool vs Std): ", round(rho_global, 3))
+
+
+message(
+  "Ergebnis des Cross-Checks (MSA auf Basis von BLOSUM90):",
+  "\nKorrelation mit PAM70 Matrix: ", round(val_global_70$correlation, 4),
+  "\nKorrelation mit PAM30 Matrix:    ", round(val_global_30$correlation, 4),
+  "\nKorrelation mit BLOSUM90 Matrix: ", round(val_global_90$correlation, 4),
+  "\nKorrelation mit BLOSUM80 Matrix:    ", round(val_global_80$correlation, 4),
+  "\nKorrelation mit BLOSUM62 Matrix:    ", round(val_global_62$correlation, 4)
+)
 
