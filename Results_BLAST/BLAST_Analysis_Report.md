@@ -58,7 +58,7 @@ Zunächst wurden die **Bit-Scores** ($S'$) der Top-30 Orthologe verglichen. Der 
 
 **Tabelle 1: Vergleich der Top-30 Orthologe**
 
-| Matrix       | Ø Identität | Ø Bit-Score | Delta (zu BLOSUM62) |
+| Matrix       | Ø Identität | Ø Bit-Score (2-30) | Delta (zu BLOSUM62) |
 | :----------- | :---------- | :---------- | :------------------ |
 | **BLOSUM62** | 85.55 %     | 516.24      | Referenz            |
 | **PAM70**    | 85.59 %     | 530.66      | + 14.42             |
