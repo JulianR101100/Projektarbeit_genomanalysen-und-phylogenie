@@ -1,9 +1,12 @@
 \documentclass[11pt, a4paper]{article}
 
+% Literatur und Zitieren
+\usepackage[backend=biber, style=ieee, citestyle=ieee]{biblatex}
+\addbibresource{Literatur_GuP.bib} % Der Name der Datei, die du in Overleaf erstellt hast
+
 % --- UNIVERSAL PREAMBLE BLOCK ---
 \usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
 \usepackage{fontspec}
-
 \usepackage[ngerman, bidi=basic, provide=*]{babel}
 
 \babelprovide[import, onchar=ids fonts]{ngerman}
@@ -17,10 +20,33 @@
 \setlist[itemize]{label=-}
 % --------------------------------
 
+\usepackage{graphicx}
+\usepackage{subcaption} % Für MSA Plots nebeneinander
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb} % Hinzugefügt zur Fehlerbehebung
 \usepackage{booktabs} % Hinzugefügt für professionelle wissenschaftliche Tabellen
+\usepackage{hyperref}
+% Tabellenlayout
+\usepackage{siunitx}       % saubere Zahlenformatierung
+\usepackage{colortbl}      % Zellfarben
+\usepackage{xcolor}        % Farben definieren
+% siunitx Setup
+\sisetup{
+  round-mode = places,
+  round-precision = 2,
+  detect-weight = true,
+  detect-inline-weight = math
+}
+% Farben für Abweichungen
+\definecolor{pos}{RGB}{220,235,255} % bläulich
+\definecolor{neg}{RGB}{245,220,220} % rötlich
+
+% Makros für Delta-Zellen
+\newcommand{\poscell}{\cellcolor{pos}}
+\newcommand{\negcell}{\cellcolor{neg}}
+
+\usepackage{minted} % Für R Code im Anhang
 
 \title{Projektarbeit Genomik und Phylogenie\\ \large Abschnitt: BLAST-Analyse und Matrix-Evaluation}
 \author{Projektarbeit GuP}
@@ -34,128 +60,147 @@
 
 \section{Methodik}
 
-\subsection{Homologiesuche und Datenbankidentifikation}
-Die Identifikation orthologer Sequenzen wurde mittels des Algorithmus BLASTP (Basic Local Alignment Search Tool für Proteine der National Center for Biotechnology Information, Version 2.12.0+) durchgeführt. Als Query-Abfrage diente eine initial uncharakterisierte Aminosäuresequenz mit einer Länge von 312 Aminosäuren. Die Suche erfolgte gegen eine unbenannte lokale Datenbank bestehend aus 538 Einträgen, woraus 501 signifikante BLAST-Hits resultierten. Für die nachfolgenden detaillierten Analysen, einschließlich des Multiplen Sequenzalignments (MSA) und der phylogenetischen Baumrekonstruktion, wurden ausschließlich die 30 Treffer mit dem höchsten Bit-Score (Top-30-Hits) extrahiert.
-
-Anhand spezifischer Metadaten-Signaturen der ausgegebenen Treffer wurde die unbekannte zugrunde liegende Datenbank als Extrakt der OrthoDB identifiziert. Ausschlaggebend hierfür waren die Präsenz eindeutiger Orthologous Group Identifiers (OG-IDs, z.\,B. \texttt{xxxxxxat7742}), OrthoDB-spezifische \texttt{level\_taxid}-Tags, das JSON-Metadatenformat sowie eine taxonomische Vorselektion, die charakteristisch für OrthoDB-Exporte ist. Diese Indizien stützen die grundlegende Annahme, dass die Trefferliste primär orthologe Sequenzen abbildet.
+\subsection{Homologiesuche}
+Die Identifikation homologer Sequenzen wurde mittels des Algorithmus BLASTP (Basic Local Alignment Search Tool für Proteine der National Center for Biotechnology Information, Version 2.12.0+) durchgeführt. Als Query-Sequenz diente eine initial uncharakterisierte Aminosäuresequenz mit einer Länge von 312 Aminosäuren. Die Suche erfolgte gegen eine unbenannte lokale Datenbank bestehend aus 538 Einträgen, woraus 501 signifikante BLAST-Hits resultierten. Für die nachfolgenden detaillierten Analysen, einschließlich des Multiplen Sequenzalignments (MSA) und der phylogenetischen Baumrekonstruktion, wurden ausschließlich die 30 Treffer mit dem höchsten Bit-Score (Top-30-Hits) extrahiert.
 
 \subsection{Mathematische Evaluation der Substitutionsmatrizen}
-Um eine fundierte Auswahl der optimalen Substitutionsmatrix für das vorliegende Protein zu gewährleisten und Verzerrungen in Folgeanalysen zu vermeiden, wurde die Matritzen-evaluation in zwei voneinander unabhängig angenommenen Dimensionen unterteilt: die Skalierung der Divergenz ("Strenge der Matrix") und das zugrunde liegende Evolutionsmodell (Art der Matrix).
+Um eine fundierte Auswahl der optimalen Substitutionsmatrix für das vorliegende Protein zu gewährleisten und Verzerrungen in Folgeanalysen zu vermeiden, wurde die Matritzen-evaluation in zwei voneinander als unabhängig angenommenen Dimensionen unterteilt: 
+die Skalierung der Divergenz ("Strenge" der Matrix) und das zugrunde liegende Evolutionsmodell (PAM oder BLOSUM).
 
 \subsubsection{Divergenzskalierung (Relative Entropie)}
-Zur Bestimmung der optimalen Strenge der Matrix wurde die relative Entropie ($H$) als Maß für den Informationsgehalt des Alignments herangezogen. Die theoretische Entropie einer Matrix gibt an, wie viel Information (in Bits) pro Position im Alignment erwartet wird. Sie berechnet sich nach dem Log-Odds-Modell als:
+Zur Bestimmung der optimalen Strenge der Matrix wurde die relative Entropie ($H$) als Maß für den Informationsgehalt des Alignments herangezogen. 
+Die theoretische Entropie einer Matrix gibt an, wie viel Information 
+(in Bits) pro Position im Alignment erwartet wird. Sie berechnet sich nach dem Log-Odds-Modell als:
 \begin{equation}
     H_{theo} = \sum_{i,j} q_{ij} \log_2\left(\frac{q_{ij}}{p_i p_j}\right) / \lambda = \sum_{i,j} q_{ij} S_{ij}
 \end{equation}
-Hierbei beschreibt $q_{ij}$ die theoretische Zielhäufigkeit (die Wahrscheinlichkeit, dass die Aminosäuren $i$ und $j$ evolutionär voneinander abstammen) und $p_i p_j$ die Hintergrundwahrscheinlichkeit des zufälligen gemeinsamen Auftretens. Der Parameter $\lambda$ dient als Skalierungsfaktor und $S_{ij}$ repräsentiert den entsprechenden Matrix-Score. 
+Hierbei beschreibt $q_{ij}$ die theoretische Zielhäufigkeit (die Wahrscheinlichkeit, dass die Aminosäuren $i$ und $j$ evolutionär voneinander abstammen) und $p_i p_j$ die Hintergrundwahrscheinlichkeit des zufälligen gemeinsamen Auftretens. 
+Der Parameter $\lambda$ dient als Skalierungsfaktor und $S_{ij}$ ist der entsprechende Matrix-Score.
 
-Diese theoretische Erwartung ($H_{theo}$) wurde mit der tatsächlich beobachteten Informationsdichte ($H_{obs}$) abgeglichen. Letztere ergibt sich näherungsweise aus dem durchschnittlichen Bit-Score ($s$) pro Alignment-Länge ($L$). Eine hohe Übereinstimmung zwischen theoretischer und beobachteter Entropie indiziert eine optimale Passform des Modells.
+Diese theoretische Erwartung ($H_{theo}$) wurde mit der tatsächlich beobachteten Entropie ($H_{obs}$) abgeglichen. 
+Letztere ergibt sich näherungsweise aus dem durchschnittlichen Bit-Score ($s$) pro Alignment-Länge ($L$). Die Entropie gibt somit für ein lokales Alignment zwei vergleichbare Werte für den erwarteten Score pro Aminosäure an. Eine hohe Übereinstimmung zwischen theoretischer und beobachteter Entropie indiziert eine optimale Passform des Modells.
 
 \subsubsection{Art der Matrix (Evolutionsmodell und Zielhäufigkeiten)}
 Zur Differenzierung zwischen blockbasierten Modellen (BLOSUM) und Modellen basierend auf zeitkontinuierlichen Markov-Prozessen (PAM) wurden die empirischen Zielhäufigkeiten ($q_{ij}^{obs}$) der Aminosäuresubstitutionen evaluiert. Diese wurden jeweils aus dem MSA der Top-30-Hits und gesammten 501-Hits berechnet. Die empirische Häufigkeit des Austauschs zweier Aminosäuren $i$ und $j$ ist definiert durch:
 \begin{equation}
     q_{ij}^{obs} = \frac{C_{ij}}{\sum_{k=1}^{20}\sum_{l=1}^{20} C_{kl}}
 \end{equation}
-wobei $C_{ij}$ die absolute Zählrate der jeweiligen Aminosäurepaarungen über alle validen Spalten des MSA darstellt. Aus diesen Frequenzen wurden die beobachteten Log-Odds-Scores ($S_{ij}^{obs}$) unter Berücksichtigung der empirischen Hintergrundhäufigkeiten ($p_i^{obs}$) abgeleitet:
+wobei $C_{ij}$ die Zählrate der Aminosäurepaarungen über alle validen MSA-Spalten $c$ darstellt. Zur algorithmischen Skalierung für das 501-Sequenzen-MSA wurde die Zählung von einer quadratischen Paar-Iteration mit der \texttt{combn()} Funktion ($\mathcal{O}(N^2)$) auf eine effiziente Matrixoperation ($\mathcal{O}(N)$) optimiert. Die Elemente von $C_{ij}$ berechnen sich pro Spalte aus dem äußeren Produkt der spaltenspezifischen Aminosäure-Häufigkeitsvektoren $v^{(c)}$. Mathematisch ergibt sich dabei $v_i^{(c)} \cdot v_j^{(c)}$ für $i \neq j$, während die Diagonale zur Vermeidung unmöglicher Selbstpaarungen als $v_i^{(c)}(v_i^{(c)} - 1)$ definiert ist. Aus diesen Frequenzen wurden die beobachteten Log-Odds-Scores ($S_{ij}^{obs}$) unter Berücksichtigung der empirischen Hintergrundhäufigkeiten ($p_i^{obs}$) abgeleitet:
 \begin{equation}
     S_{ij}^{obs} = \log_2 \left( \frac{q_{ij}^{obs}}{p_i^{obs} \cdot p_j^{obs}} \right)
 \end{equation}
-Die Übereinstimmung der etablierten theoretischen Matrizenmodelle ($S^{theo}$) mit den biologischen Daten ($S^{obs}$) wurde abschließend mittels der empirischen Pearson-Korrelation ($R$) quantifiziert:
+Die Übereinstimmung der etablierten theoretischen Matrizenmodelle ($S^{theo}$) mit den biologischen Daten ($S^{obs}$) wurde abschließend mittels der Pearson-Korrelation ($R$) quantifiziert:
 \begin{equation}
+    \label{Fomular_Pearson}
     R = \frac{\sum (S_{ij}^{theo} - \overline{S}^{theo})(S_{ij}^{obs} - \overline{S}^{obs})}{\sqrt{\sum (S_{ij}^{theo} - \overline{S}^{theo})^2 \sum (S_{ij}^{obs} - \overline{S}^{obs})^2}}
 \end{equation}
-Dieser statistische Ansatz ermöglicht eine von Heuristiken unabhängige, stringente Validierung des biologisch zutreffendsten Evolutionsmodells für die phylogenetische Rekonstruktion.
+Dieser statistische Ansatz ermöglicht eine von Heuristiken unabhängige, stringente Validierung des biologisch zutreffendsten Evolutionsmodells.
 
 \section{Ergebnisse}
 
-\subsection{Datenbank-Annotation und Basisparameter}
-Die Analyse der Annotationen der 501 signifikanten BLAST-Treffer ergab ein konsistentes Bild rein orthologer Sequenzen über diverse Taxa hinweg. Dies untermauert die aus den Metadaten abgeleitete Annahme, dass der Suchraum auf einer bereinigten OrthoDB-Datenbank basiert. 
+\subsection{Datenbank-Annotation und Charakterisierung des Suchraums}
 
-Ein initialer Vergleich der Basisparameter für die Top-30-Hits (siehe Tabelle~\ref{tab:basisparameter}) offenbarte eine durchgehend hohe Sequenzidentität von durchschnittlich $85{,}5\,\%$. Abhängig von der gewählten Substitutionsmatrix variierten die resultierenden durchschnittlichen Bit-Scores ($S'$) signifikant: Während die Standardmatrix BLOSUM62 einen mittleren Bit-Score von $516{,}24$ lieferte, erzielten theoretisch strengere Matrizen wie BLOSUM90 ($541{,}24$) und PAM30 ($541{,}45$) deutlich höhere Nominalwerte. Dies indiziert bereits heuristisch, dass eine restriktivere Matrix die hohe evolutionäre Konservierung des TSR3-Proteins besser abbildet.
+Anhand spezifischer Metadaten der ausgegebenen Treffer wurde die unbekannte zugrunde liegende Datenbank als Extrakt der OrthoDB identifiziert. Ausschlaggebend hierfür waren die Präsenz eindeutiger Orthologous Group Identifiers (OG-IDs, z.\,B. \texttt{xxxxxxat7742}), OrthoDB-spezifische \texttt{level\_taxid}-Tags, das JSON-Metadatenformat sowie eine taxonomische Vorselektion, die charakteristisch für OrthoDB-Exporte ist.  Diese Indizien stützen die grundlegende Annahme, dass der vorgegebene Suchraum bereits für orthologe Sequenzen angereichert ist. Dennoch schließt diese Vorselektion das Vorhandensein von In-Paralogen nicht zwingend aus, weshalb eine spätere phylogenetische Baumanalyse zur finalen Differenzierung unerlässlich bleibt.
 
-\begin{table}[htbp]
-    \centering
-    \begin{tabular}{lcc}
-        \toprule
-        \textbf{Substitutionsmatrix} & \textbf{$\varnothing$ Identität [\%]} & \textbf{$\varnothing$ Bit-Score} \\
-        \midrule
-        BLOSUM62 & $85{,}55$ & $516{,}24$ \\
-        PAM70 & $85{,}59$ & $530{,}66$ \\
-        BLOSUM80 & $85{,}51$ & $539{,}10$ \\
-        BLOSUM90 & $85{,}53$ & $541{,}24$ \\
-        PAM30 & $85{,}61$ & $541{,}45$ \\
-        \bottomrule
-    \end{tabular}
-    \caption{Vergleich der Basisparameter für die Top-30-Hits in Abhängigkeit der gewählten Substitutionsmatrix.}
-    \label{tab:basisparameter}
-\end{table}
+Ein erster Vergleich der Basisparameter für die zu untersuchenden Orthologe (Top-30-Hits) offenbarte eine durchgehend hohe und über verschiedene Substitutionsmatrizen hinweg konstante Sequenzidentität von durchschnittlich $85{,}56\,\%$ mit einer Standardabweichung von $\approx 0{,}04\,\%$. Im Gegensatz dazu variierten die resultierenden durchschnittlichen Bit-Scores ($S'$) signifikant: Während die Standardmatrix BLOSUM62 einen mittleren Bit-Score von $516{,}24$ lieferte, erzielten theoretisch strengere Matrizen wie BLOSUM90 ($541{,}24$) und PAM30 ($541{,}45$) deutlich höhere Nominalwerte. 
 
 \subsection{Divergenzskalierung und Informationsdichte}
-Um zu validieren, ob die höheren Bit-Scores von PAM30 und BLOSUM90 tatsächlich auf einer besseren Modellpassform beruhen oder lediglich Artefakte einer zu harten Bestrafung (Over-fitting) darstellen, wurde die relative Entropie analysiert (Zusammenfassung in Tabelle~\ref{tab:entropie}). 
+Um zu validieren, ob die höheren Bit-Scores von PAM30 und BLOSUM90 tatsächlich auf einer besseren Modellpassform beruhen oder lediglich Artefakte einer zu harten Bestrafung (Over-fitting) darstellen, wurde die relative Entropie analysiert (Zusammenfassung in Tabelle \ref{tab:entropie_delta}).
 
-Es zeigte sich eine deutliche Diskrepanz bei den Extremwerten: Die Standardmatrix BLOSUM62 wies ein massives Under-fitting auf. Ihre theoretische Erwartung ($H_{theo} \approx 0{,}7$ Bits) wurde von der beobachteten Informationsdichte der hochkonservierten TSR3-Orthologe ($H_{obs} \approx 1{,}6$ Bits) weit übertroffen; das Modell trennt Signal unzureichend von Rauschen. PAM30 hingegen resultierte in einem deutlichen Over-fitting ($H_{theo} \approx 2{,}57$ Bits vs. $H_{obs} \approx 1{,}7$ Bits), da das Modell nahezu identische Sequenzen erwartet und die real vorhandenen Variationen zu stark bestraft. 
+Es zeigte sich eine deutliche Diskrepanz bei den Extremwerten: Die Standardmatrix BLOSUM62 wies ein massives Under-fitting auf. Ihre theoretische Erwartung ($H_{theo} \approx 0{,}7$ Bits) wurde von der beobachteten Informationsdichte der hochkonservierten TSR3-Orthologe ($H_{obs} \approx 1{,}6$ Bits) weit übertroffen. PAM30 hingegen resultierte in einem deutlichen Over-fitting ($H_{theo} \approx 2{,}57$ Bits vs. $H_{obs} \approx 1{,}7$ Bits), da das Modell nahezu identische Sequenzen erwartet und die real vorhandenen Variationen zu stark bestraft. 
 
-Die Matrizen PAM70 und BLOSUM90 trafen hingegen den empirischen \textit{Sweet Spot}. Bei beiden Modellen erwiesen sich die theoretische Erwartung und die tatsächliche Informationsdichte als nahezu deckungsgleich ($\approx 1{,}6$ bis $1{,}7$ Bits), was eine optimale Abbildung der Divergenz belegt.
+Die Matrizen PAM70 und BLOSUM90 trafen hingegen für alle Messungen den empirischen \textit{Sweet Spot}. Bei beiden Modellen lagen theoretische Erwartung und die tatsächliche Informationsdichte am nächsten ($\approx 1{,}6$ bis $1{,}7$ Bits), was für eine optimale Abbildung der Divergenz spricht.
 
 \begin{table}[htbp]
-    \centering
-    \begin{tabular}{lccl}
-        \toprule
-        \textbf{Matrix} & \textbf{$H_{theo}$ [Bits]} & \textbf{$H_{obs}$ [Bits]} & \textbf{Modellpassform} \\
-        \midrule
-        BLOSUM62 & $\approx 0{,}70$ & $\approx 1{,}60$ & Under-fitting (zu weich) \\
-        PAM70 & $\approx 1{,}60$ & $\approx 1{,}60$ & Optimal (Sweet Spot) \\
-        BLOSUM90 & $\approx 1{,}70$ & $\approx 1{,}70$ & Optimal (Sweet Spot) \\
-        PAM30 & $\approx 2{,}57$ & $\approx 1{,}70$ & Over-fitting (zu streng) \\
-        \bottomrule
-    \end{tabular}
-    \caption{Vergleich der theoretisch erwarteten ($H_{theo}$) und der aus dem Alignment beobachteten ($H_{obs}$) relativen Informationsdichte.}
-    \label{tab:entropie}
+\centering
+
+\begin{tabular}{l
+                S[table-format=1.2]
+                S[table-format=1.2] S[table-format=+1.2]
+                S[table-format=1.2] S[table-format=+1.2]
+                S[table-format=1.2] S[table-format=+1.2]}
+\toprule
+ & & \multicolumn{6}{c}{\textbf{Beobachtete Entropie}} \\
+\cmidrule(lr){3-8}
+\textbf{Matrix} &
+\textbf{$H_{\text{theo}}$} &
+\textbf{Top-30} & \textbf{$\Delta H$} &
+\textbf{Top-100} & \textbf{$\Delta H$} &
+\textbf{Global} & \textbf{$\Delta H$} \\
+\midrule
+PAM30   & 2.57  & 1.74 & \negcell -0.83 & 1.59 & \negcell -0.98 & 1.38 & \negcell -1.19 \\
+PAM70   & 1.60    & 1.71 & \poscell +0.11   & 1.56 & \negcell -0.04 & 1.36 & \negcell -0.24 \\
+BLOSUM90    & 1.18  & 1.74 & \poscell +0.56 & 1.60 & \poscell +0.42 & 1.38 & \poscell +0.20 \\
+BLOSUM80    & 0.99  & 1.74 & \poscell +0.75 & 1.59 & \poscell +0.60 & 1.38 & \poscell +0.39 \\
+BLOSUM62    & 0.70  & 1.66 & \poscell +0.96 & 1.52 & \poscell +0.82 & 1.33 & \poscell +0.63 \\
+\bottomrule
+\end{tabular}
+\caption{
+Abweichung der beobachteten Entropie von der theoretischen Erwartung ($H_{\text{theo}}$), mit genauen Literatur werten aus \cite{LocalAlignmentStatistics1996} Altschul SF.
+Positive $\Delta H$-Werte (Blau) zeigen eine höhere Informationsdichte als theoretisch erwartet,
+negative Werte eine geringere (Rot).
+}
+\label{tab:entropie_delta}
 \end{table}
 
-\begin{figure}[htbp]
-  \centering
-  \framebox{\parbox{0.8\textwidth}{\centering
-    \vspace{3cm}
-    \textbf{Platzhalter: Scatterplot der relativen Entropie} \\
-    \small\textit{Matrix-Passform: Theorie vs. Praxis für BLOSUM und PAM.}
-    \vspace{3cm}
-  }}
-  \caption{Vergleich der theoretischen ($H_{theo}$) und beobachteten ($H_{obs}$) relativen Entropie für verschiedene Substitutionsmatrizen. Die ideale Modellpassform liegt vor, wenn beide Werte übereinstimmen (gestrichelte Ideallinie).}
-  \label{fig:entropie}
-\end{figure}
-
 \subsection{Validierung des Evolutionsmodells}
-Zur finalen Differenzierung zwischen den Modellen PAM70 und BLOSUM90 wurden die empirischen Zielhäufigkeiten mittels Pearson-Korrelation ($R$) evaluiert. Die Analyse wurde sowohl für den hochkonservierten Kern (Top-30-Hits) als auch für den globalen Datensatz (501 Hits) durchgeführt. Um einen methodischen Zirkelschluss bei der Evaluierung der PAM-Hypothese zu vermeiden, wurden das zugrunde liegende BLAST-Suchverfahren sowie das Multiple Sequenzalignment neutral unter der BLOSUM-Hypothese generiert.
+\label{Methode_Zielhäufigkeiten}
+Zur finalen Differenzierung zwischen den Modellen PAM70 und BLOSUM90 wurden die empirischen Zielhäufigkeiten mittels Pearson-Korrelation ($R$) evaluiert. Die Analyse wurde sowohl für die Top-30-Hits als auch für den globalen Datensatz (501 Hits) durchgeführt. Um einen methodischen Zirkelschluss bei der Evaluierung der PAM-Hypothese zu vermeiden, wurden das zugrunde liegende BLAST-Suchverfahren sowie das Multiple Sequenzalignment zum Vergeleich unter einer BLOSUM-Hypothese generiert.
 
-Wie in Tabelle~\ref{tab:korrelation} ersichtlich, ergaben für die Top-30-Orthologe die auf zeitkontinuierlichen Markov-Prozessen basierenden PAM-Matrizen die höchsten Korrelationswerte (PAM30: $R=0{,}856$; PAM70: $R=0{,}855$). Sie übertrafen damit die blockbasierten Modelle (z.\,B. BLOSUM90: $R=0{,}831$). Bei Ausweitung der Analyse auf den global diverseren Datensatz (501 Hits) zeigte sich eine signifikante Verschiebung der Robustheit: Während das Kurzzeit-Modell PAM30 an Validität verlor ($R=0{,}859$), kristallisierte sich PAM70 mit einer Korrelation von $R=0{,}876$ als globaler Champion heraus. Es bildete die Aminosäuresubstitutionen von TSR3 auch über größere taxonomische Distanzen hinweg genauer ab als das stärkste BLOSUM-Pendant (BLOSUM90: $R=0{,}857$).
+Wie in Tabelle \ref{tab:korrelation} ersichtlich, ergaben für die Top-30-Orthologe die auf zeitkontinuierlichen Markov-Prozessen basierenden PAM-Matrizen die höchsten Korrelationswerte (PAM30: $R=0{,}856$; PAM70: $R=0{,}855$). Sie übertrafen damit die blockbasierten Modelle (z.\,B. BLOSUM90: $R=0{,}831$). Bei Ausweitung der Analyse auf den global diverseren Datensatz (501 Hits) zeigte sich eine signifikante Verschiebung der Robustheit: Während das Kurzzeit-Modell PAM30 an Validität verlor ($R=0{,}859$), kristallisierte sich PAM70 mit einer Korrelation von $R=0{,}876$ als globaler Champion heraus. Es bildete die Aminosäuresubstitutionen von TSR3 auch über größere taxonomische Distanzen hinweg genauer ab als das stärkste BLOSUM-Pendant (BLOSUM90: $R=0{,}857$).
 
 \begin{table}[htbp]
     \centering
-    \begin{tabular}{lcc}
+    \begin{tabular}{lccc}
         \toprule
-        \textbf{Evolutionsmodell} & \textbf{Korrelation $R$ (Top-30)} & \textbf{Korrelation $R$ (Global, $N=501$)} \\
+        \textbf{Evolutionsmodell} & \textbf{R $H_{Neutral}$ (Top-30)} & \textbf{R $H_{BLOSUM}$ (Top-30)} & \textbf{R $H_{BLOSUM}$ (Global, $N=501$)} \\
         \midrule
-        PAM70 & $0{,}855$ & $\mathbf{0{,}876}$ \\
-        PAM30 & $\mathbf{0{,}856}$ & $0{,}859$ \\
-        BLOSUM90 & $0{,}831$ & $0{,}857$ \\
-        BLOSUM62 & $0{,}822$ & $0{,}843$ \\
+        PAM70     & $\mathbf{0{,}855}$ & $\mathbf{0{,}846}$ & $\mathbf{0{,}877}$ \\
+        PAM30     & $\mathbf{0{,}856}$ & $0{,}841$          & $0{,}859$ \\
+        BLOSUM90  & $0{,}831$          & $0{,}835$          & $0{,}857$ \\
+        BLOSUM80  & $0{,}831$          & $0{,}834$          & $0{,}857$ \\
+        BLOSUM62  & $0{,}822$          & $0{,}823$          & $0{,}843$ \\
         \bottomrule
     \end{tabular}
-    \caption{Pearson-Korrelationskoeffizienten ($R$) zwischen theoretischen und empirischen Log-Odds-Scores. Die empirischen Daten basieren auf Alignments, die zur Vermeidung von Zirkelschlüssen unter der BLOSUM-Hypothese generiert wurden.}
+    \caption{Pearson-Korrelationskoeffizienten (\textbf{R}) zwischen theoretischen und empirischen Log-Odds-Scores. Die Alignments basieren entweder auf
+    einer Neutralen Hypothese ($H_{Neutral}$) mit dynamischer Matrix-wahl des ClustalW Algorythmus oder rein auf einer BLOSUM Hypothese ($H_{BLOSUM}$)
+    die Alignemnts auf Blast ergebnisse mit BLOSUM und ClustlaW auf ausschließlich Blosum Matritzen beschränkt.}
     \label{tab:korrelation}
 \end{table}
 
 \begin{figure}[htbp]
   \centering
-  \framebox{\parbox{0.8\textwidth}{\centering
-    \vspace{3cm}
-    \textbf{Platzhalter: Scatterplot der Zielhäufigkeiten} \\
-    \small\textit{Inklusive linearer Regression ($S^{obs}$ vs. $S^{theo}$) für PAM70.}
-    \vspace{3cm}
-  }}
-  \caption{Korrelation der empirischen Log-Odds-Scores ($S^{obs}$) des globalen Datensatzes mit den theoretischen Werten ($S^{theo}$) der PAM70-Matrix. Die Streuung um die Regressionsgerade visualisiert die Präzision des gewählten Evolutionsmodells ($R=0{,}8765$).}
+  \includegraphics[width=1\textwidth]{BLAST_Figures/R_N=501_BLOSUMvsPAM.pdf}
+  \caption{Korrelation der empirischen Log-Odds-Scores ($S^{obs}$) des globalen Datensatzes unter $H_{BLOSUM}$ mit den theoretischen Log-Odds ($S^{theo}$) der PAM70-Matrix. Die Streuung um die Regressionsgerade visualisiert die Präzision des gewählten Evolutionsmodells.}
   \label{fig:zielhaeufigkeit}
 \end{figure}
+
+
+
+\section{Diskussion}
+
+\subsection{Interpretation der Modellevaluation: Skalierung und Evolutionsmodell}
+Die vorliegende Analyse zielte darauf ab, die optimale Substitutionsmatrix für die Homologiesuche und das anschließende Alignment des TSR3-Proteins zu identifizieren. Die exakte Modellierung ihrer evolutionären Distanz ist daher von kritischer Bedeutung.
+
+Die Untersuchung der Divergenzskalierung (Strenge der Matrix) offenbarte, dass die standardmäßig verwendete BLOSUM62-Matrix für die hochkonservierten Top-30-Hits ($>85\,\%$ Identität) zu weich ist (Under-fitting), während die Kurzzeit-Matrix PAM30 Variationen zu stark bestraft (Over-fitting). Der erwarteten Entrophie der Matix am nächsten kamen die PAM70 und BLOSUM90. Es ist zu beachten, dass sich dieses Ergebniss für eine andere Wahl an top-Hits bestehen bleibt, und das trotz starker Abhängigkeit der Entrophie von der Zahl an untersuchten hits. Für eine mögliche Inkusion von 100 oder auch allen 501 Trefferen stellen das kleinste $\Delta H$ weiterhin PAM70 und BLOSUM90.
+
+Da die Substitutionsamtrix auch eine implizite Biologische Annahme beinhaltet, sind die genauen unterschiede der Entrophie von PAM70 und BLOSUM90 gegenüber der Wahl des Evolutionsmodells zu vernachlässiegen. Die anschließende Korrelationsanalyse der Zielhäufigkeiten konnte diesen relativen Gleichstand bei der Skalierung zugunsten des PAM-Modells brechen. Die Tatsache, dass PAM70 die Substitutionsmuster besser erklärt als BLOSUM90, lässt tiefgreifende Rückschlüsse auf die evolutionäre Dynamik von TSR3 zu. Während BLOSUM-Matrizen auf konservierten Sequenzblöcken (Domänen) basieren, modelliert PAM die Evolution als zeitkontinuierlichen Markov-Prozess von Punktmutationen.
+Der bessere Fit mit PAM ließe sich somit zum Beispiel druch die essentielle Rolle des  TSR3 in der Ribosomenbiogenese oder mit einer allgemeinen Wichtigkeit der Struktur (z.\,B. durch Signalproteine) erklären. Eine reine Selbstkorrelation durch die Matrix wahl im ClustalW algoryhtmus oder der BLAST ergebnissen kann durch die angewandten Hypotehsen in Tabelle \ref{tab:korrelation} ausgeschlossen werden.
+
+Besonders bemerkenswert und stützend für die Wahl von PAM70 ist das Verhalten des Modells bei einer Erweiterung der Datenbasis. Weitet man die Betrachtung von den eng verwandten Top-30-Hits auf die gesamte Datenbank ($N=501$) aus, fällt die für kurze Evolutionäre Distanzen ausgerichtete PAM30 wie erwartet ab. Die Korrelation für PAM70 hingegen \textit{verbessert} sich paradoxerweise sogar noch (von $R=0{,}855$ auf $R=0{,}876$). Damit ist empirisch gezeigt, dass PAM70 nicht nur lokal an die Top-30-Hits "overgefittet" ist, sondern eine allgemeingültige, robuste Matrix für die Modellierung der globalen Evolution von TSR3 darstellt.
+
+
+\subsection{Kritische Reflexion der Methodik und akademischen Praxis}
+Die empirische Evaluation der Substitutionsmatrizen wirft eine grundsätzliche wissenschaftstheoretische Frage auf, die auch die Formulierung der zugrunde liegenden Arbeitsanweisung berührt. Dort wird angegeben, dass es bezüglich der Matrixwahl keine eindeutige "\textit{one is right everything else is wrong}"-Antwort gäbe. 
+
+Dieser Prämisse muss auf Basis der vorliegenden Datenlage widersprochen werden. Zwar ist es korrekt, dass evolutionäre Modelle grundsätzlich mathematische Approximationen darstellen und keine absolute biologische "Wahrheit" abbilden können. Dennoch zeigen die empirisch erhobenen Metriken, insbesondere die Diskrepanz in der relativen Entropie und die klaren Differenzen in der Korrelation der Zielhäufigkeiten, dass stochastische Verfahren sehr wohl in der Lage sind, eine quantifizierbare Hierarchisierung der Matrizen vorzunehmen. Im Kontext der vorliegenden TSR3-Daten ist die Wahl von BLOSUM62 im Vergleich zu PAM70 empirisch schlichtweg suboptimal und mathematisch als schlechtere Passform zu bewerten. Ein binäres "Richtig" oder "Falsch" mag absolut gesehen nicht existieren, die Kategorisierung in "Signifikant besser" oder "Schlechter" ist jedoch zweifellos möglich und durch die Daten belegbar.
+
+Dieser Befund erzwingt eine kritische Auseinandersetzung mit der gängigen Praxis in weiten Teilen der biologischen Fachliteratur. Allzu oft wird BLAST als algorithmische "Black Box" betrachtet, bei der Standardeinstellungen (wie BLOSUM62) unreflektiert übernommen werden. Als Rechtfertigung dient hierbei häufig die pragmatische Annahme, die Wahl der Matrix verändere die resultierenden BLAST-Treffer im Zweifelsfall ohnehin nicht signifikant. Zum eine lässt sich so eine Implikation im Vorhinein einer Analyse nicht belegen, zum Anderen darf sie auch nicht als akademische Entschuldigung dafür dienen, sich der Evaluierung der Methodik zu entziehen. Die vorliegenden Daten widerlegen zudem jene Annahme: Selbst bei einem hochkonservierten Protein wie dem TSR3 führt der Wechsel von der Standardmatrix BLOSUM62 zu PAM70 bei der Hälfte der Top-30-Spezies (15 von 30) zu einer relevanten Rangverschiebung. So rückt beispielsweise das Pferd (\textit{Equus caballus}) von Rang 20 unter BLOSUM62 auf Platz 13 unter PAM70 vor. Für mögliche nachgelagerte Sequenzanalysen (z.\,B. der Distanz Mensch--Pferd) stellt eine solche Verschiebung einen gravierenden Unterschied dar. \\
+Die Wahl der Matrix ist damit keine triviale Formalität, sondern definiert das stochastische Fundament, auf dem sämtliche Folgeanalysen -- vom Multiplen Sequenzalignment bis zur Berechnung phylogenetischer Distanzmatrizen -- aufbauen. Eine ungenaue oder unpassende Basis in der initialen Homologiesuche kompromittiert zwangsläufig die Trennschärfe, die Reproduzierbarkeit und damit letztlich die wissenschaftliche Aussagekraft der daraus erhobenen phylogenetischen Daten.
+
+\vspace{50}
+
+\href{https://github.com/JulianR101100/Projektarbeit_genomanalysen-und-phylogenie}{Link zu Git Hub Repositorry der Projektarbeit}. Mit KI Erstellte Inhalte (ChatGPT-5 und GEMINI3.) sind in Kommentaren gekennzeichnet. Unter die Bearbeitung viel auch die grafische Anpassung von Plots (Formatierung, Farbcodes und allgemeines Aussehen). \\
+(URL: \url{https://github.com/JulianR101100/Projektarbeit_genomanalysen-und-phylogenie})
 
 \end{document}

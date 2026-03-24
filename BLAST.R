@@ -74,14 +74,14 @@ annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten
   }
   
   # 2. Metadaten aus FASTA-Headern extrahieren
-  # Wir lesen direkt nur die Header-Zeilen (starten mit ">")
+  # Wir lesen direkt nur Header-Zeilen start mit ">"
   raw_headers <- grep("^>", readLines(fasta_db_path), value = TRUE)
   
-  # Bereinigung: ">" entfernen
+  # ">" entfernen
   headers_clean <- str_sub(raw_headers, 2)
   
   # Parsing: ID, Organismus und Beschreibung extrahieren
-  # Erstellt direkt den Lookup-Dataframe
+  # Erstellt direkt Lookup-Dataframe für spätere Verknüpfung mit BLAST-Ergebnissen
   annotation_df <- data.frame(
     Accession_ID = word(headers_clean, 1),
     Organism     = str_extract(headers_clean, '(?<="organism_name":")[^"]+'),
@@ -100,7 +100,8 @@ annotate_blast_results <- function(blast_results, fasta_db_path = "Data/Rohdaten
   message(sprintf("Annotation abgeschlossen. %d Treffer verbleiben (E-Value <= %s).", 
                   nrow(annotated_data), as.character(e_value_threshold)))
   
-  # 4. Optional: Speichern
+  # 4. Optional: Speichern 
+  # (lasst es bitte standardmäßig auf FLASE damit nicht ausversehen daten überschreibt)
   if (create_csv) {
     output_file <- "Results_BLAST/anotated_top30_Blosum90.csv"
     write_csv(annotated_data, output_file)
@@ -120,7 +121,7 @@ annotated_blast_results <- annotate_blast_results(
 # Top 30 Ergenisse -> Achtet darauf, wenn e value zu nidrig ist, werden natürlich nicht ganz 30 gezeigt
 top30_identity <- head(annotated_blast_results, 30)
 top30_identity[, c("Organism", "Percent_identity", "Alignment_length", "E_value")]
-# Es gibt 
+
 blast_data_30[blast_data_30$Alignment_length > 312, ]
 # Gen ist sehr gut konserviert.  nur zwei Primaten (9, 18) mit gaps (alignmentlen > 312)
 top30_identity[top30_identity$Alignment_length > 312, c("Organism", "Percent_identity", "Alignment_length", "E_value")]
@@ -128,17 +129,17 @@ top30_identity[top30_identity$Alignment_length > 312, c("Organism", "Percent_ide
 # ==== 1.  Blast Ergebnisse Visualisieren ====
 
 #' Plot: Empirische Score-Verteilung vs. Theoretische Gumbel-Verteilung
-#' @param lambda (Standard für BLOSUM62: 0.267)
-#' @param K Karlin-Altschul Parameter (Standard für BLOSUM62: 0.041)
-#' @param m Länge der Query-Sequenz (Standard TSR3: 312 AA)
-#' @param n Größe der Datenbank in Residues (Standard Projekt-DB: ~156.222 AA)
+#' @param lambda (für BLOSUM62: 0.267)
+#' @param K Karlin-Altschul Parameter (für BLOSUM62: 0.041)
+#' @param m Länge der Query-Sequenz (TSR3: 312 AA)
+#' @param n Größe der Datenbank in Residues (Projekt-DB: ~156.222 AA)
 plot_score_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n = 156222) {
   
   # Bereinigung: Nur gültige Scores nutzen
   scores <- na.omit(blast_data$Score)
   
   # Theoretische Gumbel-Dichtefunktion definieren
-  # Parameterberechnung nach Karlin-Altschul
+  # So wie Vorlesung Karlin-Altschul
   gumbel_density <- function(x) {
     # Location parameter u
     u <- (log(K * m * n)) / lambda
@@ -149,7 +150,6 @@ plot_score_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n 
     (1/beta) * exp(-(x - u)/beta) * exp(-exp(-(x - u)/beta))
   }
   
-  # Plot mit ggplot2
   ggplot(data.frame(Score = scores), aes(x = Score)) +
     # 1. Histogramm auf Dichte-Skala normieren (damit es zur Kurve passt)
     geom_histogram(aes(y = after_stat(density)), bins = 40, fill = "lightblue", color = "black", alpha = 0.6) +
@@ -166,12 +166,11 @@ plot_score_gumbel <- function(blast_data, lambda = 0.267, K = 0.041, m = 312, n 
 }
 
 #' Plot: Bit-Score vs. E-Value (Signifikanz-Check)
-#' @param blast_data
-#' @description Zeigt den logarithmischen Zusammenhang zwischen Score und E-Value.
-#' Es sollte eine perfekte Gerade entstehen.
+#' Zeigt logarithmischen Zusammenhang zwischen Score und E-Value.
+#' Es sollte Gerade entstehen.
 plot_bitscore_significance <- function(blast_data) {
   
-  # Filtern: E-Values von 0 können nicht log-transformiert werden
+  # Filtern -> Problem E-Values von 0 können nicht log-transformiert werden
   plot_data <- blast_data %>%
     filter(E_value > 0)
   
@@ -186,12 +185,11 @@ plot_bitscore_significance <- function(blast_data) {
     theme_bw()
 }
 
-# 1. Gumbel-Verteilung Plotten (Test mit PAM30 für mehr "Rauschen")
-# Wir nutzen blast_data_30, da hier kürzere/schwächere Alignments erwartet werden.
+# Test mit PAM30 für mehr "Rauschen"
 # "Problem" BLAST speichert nur signifikante Hits (datenbank sonst viel zu groß), liegen unsere Daten
 # wahrscheinlich immer noch weit rechts vom theoretischen Gumbel-Maximum (Rauschen).
 
-print(plot_score_gumbel(blast_data_30, lambda = 0.294, K = 0.110)) # Werte für PAM30 ggf. anpassen
+print(plot_score_gumbel(blast_data_30, lambda = 0.294, K = 0.110)) # Werte für PAM70 ggf. anpassen
 
 # 2. Signifikanz
 print(plot_bitscore_significance(annotated_blast_results))
@@ -261,7 +259,7 @@ message("Durchschnittliche Identität (Top 30 Hits):",
         "\nPAM70:    ", calc_target_identity(blast_data_70), "%")
 
 get_mean_bitscore_top30 <- function(df) {
-  # Wir nehmen Zeile 2 bis 30 (oder weniger, falls weniger Treffer existieren)
+  # Zeile 2 bis 30 (oder weniger, falls weniger Treffer existieren)
   n <- min(nrow(df), 30)
   return(round(mean(df$Bit_score[2:n]), 2))
 }
@@ -276,9 +274,6 @@ message("Durchschnittlicher Bit-Score (Hits 2-30):",
 # ==== 3.  Entscheidung mittels (KL-Divergenz / Relative Entropie) ====
 # 2. Definition der Theoretischen Entropie (H)
 # Werte basierend auf Literatur (Altschul et al. / NCBI Dokumentation).
-# H (in Bits) ist ein Maß für den Informationsgehalt der Matrix pro alignierter Position.
-# Hohes H = Matrix für sehr ähnliche Sequenzen (kurze Evolution).
-# Niedriges H = Matrix für entfernte Sequenzen (lange Evolution).
 matrix_entropy <- data.frame(
   Matrix = c("PAM30", "PAM70", "BLOSUM90", "BLOSUM80", "BLOSUM62"),
   H_theoretical = c(2.57, 1.60, 1.18, 0.99, 0.70),
@@ -288,12 +283,11 @@ matrix_entropy <- data.frame(
 # 2. Funktion zur Berechnung der Observed Bits per Residue
 # Wir prüfen, wie viel Information wir tatsächlich pro Position extrahieren konnten.
 calculate_observed_entropy <- function(blast_data, matrix_name) {
-  # Wir betrachten die übergebenen Daten (z.B. Top 30 oder den gesamten Datensatz)
+  # betrachte die übergebenen Daten (z.B. Top 30 oder gesamten Datensatz)
   # Berechnung: Bits per Residue = BitScore / Alignment Länge
-  # Wenn die Matrix gut passt, sollte dieser Wert nahe an der theoretischen Entropie (H) liegen.
   blast_data$Bits_per_Residue <- blast_data$Bit_score / blast_data$Alignment_length
   
-  # Durchschnitt über die Daten
+  # Durchschnitt über Daten
   mean_obs <- mean(blast_data$Bits_per_Residue, na.rm = TRUE)
   
   return(data.frame(
@@ -302,13 +296,13 @@ calculate_observed_entropy <- function(blast_data, matrix_name) {
   ))
 }
 
-# Daten aggregieren für Top 500
+# Daten aggregieren für Top 30, 100 oder 500-(ges)
 entropy_comparison <- rbind(
-  calculate_observed_entropy(head(blast_data_30, 100), "PAM30"),
-  calculate_observed_entropy(head(blast_data_70, 100), "PAM70"),
-  calculate_observed_entropy(head(blast_data_90, 100), "BLOSUM90"),
-  calculate_observed_entropy(head(blast_data_80, 100), "BLOSUM80"),
-  calculate_observed_entropy(head(blast_data_62, 100), "BLOSUM62")
+  calculate_observed_entropy(head(blast_data_30, 501), "PAM30"),
+  calculate_observed_entropy(head(blast_data_70, 501), "PAM70"),
+  calculate_observed_entropy(head(blast_data_90, 501), "BLOSUM90"),
+  calculate_observed_entropy(head(blast_data_80, 501), "BLOSUM80"),
+  calculate_observed_entropy(head(blast_data_62, 501), "BLOSUM62")
 )
 
 # Merge mit theoretischen Werten
@@ -320,19 +314,10 @@ entropy_comparison$Difference <- entropy_comparison$H_theoretical - entropy_comp
 # Vergleich: Observed vs. Theoretical Entropy (Bits per Residue)
 entropy_comparison
 
-# Interpretation / Entscheidungshilfe
-# Wir suchen die Matrix, die:
-# 1. Einen möglichst hohen Informationsgehalt (H) bietet (um feine Unterschiede aufzulösen).
-# 2. Dabei aber keinen "Einbruch" bei den Observed Bits zeigt (Differenz sollte nicht riesig sein).
-# PAM30 hat das höchste H (2.57). Wenn Observed ebenfalls hoch ist (~2.0+), 
-# bestätigt das, dass die Sequenzen konserviert genug für diese strenge Matrix sind.
-
-# Visualisierung
-# Wir formen die Daten für ggplot um
 plot_data <- pivot_longer(entropy_comparison, cols = c("H_theoretical", "Observed_Bits_per_Residue"), 
                           names_to = "Metric", values_to = "Bits")
 
-# Faktor-Level ordnen für schöne Darstellung (nach theoretischer Härte)
+# Faktor-Level ordnen (nach theoretischer Härte)
 plot_data$Matrix <- factor(plot_data$Matrix, levels = c("PAM30", "PAM70", "BLOSUM90", "BLOSUM80", "BLOSUM62"))
 
 ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
@@ -351,7 +336,7 @@ ggplot(plot_data, aes(x = Matrix, y = Bits, fill = Metric)) +
 
 # ==== 4.  Validierung der Hintergrundfrequenzen (Compositional Check) ====
 
-#' Berechnet die Hintergrundfrequenzen der Aminosäuren aus einem MSA oder einer Sequenz
+#' Berechne Hintergrundfrequenzen der AS
 calculate_background_frequencies <- function(x) {
   aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   
@@ -368,7 +353,7 @@ calculate_background_frequencies <- function(x) {
 # 1. Query-Sequenz einlesen
 query_seq <- readAAStringSet("Data/Rohdaten/query_sequence.fasta")
 
-# 2. Beobachtete Frequenzen (p_i) berechnen
+# 2. p_i berechnen
 as_freq <- calculate_background_frequencies(query_seq)
 
 # 3. Standard-Frequenzen (Robinson-Robinson Modell, Grundlage vieler Matrizen)
@@ -386,11 +371,6 @@ rho <- cor(comp_check$Observed, comp_check$Standard)
 message("Die Korrelation der Aminosäure-Zusammensetzung beträgt: ", round(rho, 3))
 comp_check_sorted <- comp_check %>% mutate(Diff = Observed - Standard) %>% arrange(desc(Diff))
 
-# FAZIT: 
-# PAM30 bietet das höchste theoretische Potential (H=2.57).
-# Da unser TSR3 Protein hoch konserviert ist, erreichen wir auch empirisch sehr hohe Werte.
-# Wir nutzen also PAM70, um die maximale Information aus den Alignments zu ziehen.
-
 # ==== 5.  Speichern der Top30 mit gewählter Substitutionsmatrix (PAM70) ====
 # 1. Anotieren der PAM70 Ergebnisse
 pam70_annotated <- annotate_blast_results(
@@ -402,7 +382,7 @@ pam70_annotated <- annotate_blast_results(
 # 2. Top 30 selektieren
 top30_pam70 <- head(pam70_annotated, 30)
 
-# 3. Speichern der CSV
+# 3. Speichern CSV
 csv_output_path <- "Results_BLAST/top30_pam70_annotated.csv"
 write_csv(top30_pam70, csv_output_path)
 message("Top 30 PAM70 Ergebnisse gespeichert in: ", csv_output_path)
@@ -412,16 +392,15 @@ message("Top 30 PAM70 Ergebnisse gespeichert in: ", csv_output_path)
 db_sequences <- readAAStringSet("Data/Rohdaten/database.fasta")
 
 # Die Accession_IDs aus unseren Top 30 extrahieren
-# Hinweis: Die Accession_ID im Dataframe (z.B. "9606_0:0048f7") muss exakt mit dem Namen im AAStringSet übereinstimmen.
+# Hinweis für euch: Die Accession_ID im Dataframe (z.B. "9606_0:0048f7") muss exakt mit dem Namen im AAStringSet übereinstimmen.
 # Die BLAST-Ergebnisse haben oft nur den ersten Teil vor dem Leerzeichen als ID, aber readAAStringSet liest den ganzen Header.
-# Wir müssen sicherstellen, dass wir die richtigen Sequenzen finden.
 
-# Wir bereinigen die Namen in db_sequences, damit sie matchen
+# bereinigen die Namen in db_sequences, damit sie matchen
 # (Analog zur Logik in annotate_blast_results: ID ist das erste Wort)
 names(db_sequences) <- word(names(db_sequences), 1)
 
 # Filtern: Nur Sequenzen behalten, deren Name in unserer Top30 Liste ist
-# Wir nutzen match, um auch die Reihenfolge beizubehalten (optional, aber nett)
+# match() funktion, um auch die Reihenfolge beizubehalten (optional, aber nett)
 target_ids <- top30_pam70$Accession_ID
 matched_indices <- match(target_ids, names(db_sequences))
 
@@ -440,7 +419,8 @@ message("Top 30 Sequenzen gespeichert in: ", fasta_output_path)
 
 # ==== 6.  Validierung der Zielhäufigkeiten (q_ij Analyse) ====
 
-#' Hilfsfunktion zum Einlesen von Matrix-Dateien (z.B. BLSOUM90.txt) mit KI erstellt
+#' KI ERSTELLT: Hilfsfunktion zum Einlesen von Matrix-Dateien (z.B. BLSOUM90.txt)
+#' da einiege matritzen nicht in pawlgin oder Biostrings enthalten sind
 read_matrix_file <- function(file_path) {
   lines <- readLines(file_path)
   # Header-Zeile mit AA-Labels finden
@@ -471,12 +451,12 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   msa_mat <- as.matrix(unmasked(msa_obj))
   aa_list <- c("A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V")
   
-  # Optimierte Zählung der Austausche (Frequenz-basiert statt paarweise Iteration)
+  # JR: habe zählen für großes MSA optimiert, anstatdt combn() direkt aus den subconunts die Anzahl der Paare berechnet
   sub_counts <- matrix(0, nrow = 20, ncol = 20, dimnames = list(aa_list, aa_list))
   
   for (col in 1:ncol(msa_mat)) {
     residues <- msa_mat[, col]
-    # Filterung auf valide Aminosäuren
+    # Filterung auf valide Aminosäuren ohne gaps
     valid_residues <- residues[residues %in% aa_list]
     
     if (length(valid_residues) > 1) {
@@ -488,7 +468,7 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
       # Dies entspricht exakt der Anzahl der Paare (i, j)
       col_sub_matrix <- outer(counts_vec, counts_vec)
       
-      # Korrektur der Diagonale: Ein Aminosäure-Zeichen kann nicht mit sich selbst 
+      # Korrektur der Diagonale: -> Ein Aminosäure-Zeichen kann nicht mit sich selbst 
       # an derselben Position gepaart werden (n * (n-1) statt n * n)
       diag(col_sub_matrix) <- counts_vec * (counts_vec - 1)
       
@@ -510,13 +490,12 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
     }
   }
   
-  # Matrix-Quelle bestimmen
+  # KI ERSTELLT: Matrix-Quelle bestimmen (da einiege matritzen nicht in pawlgin oder Biostrings enthalten)
   if (is.matrix(matrix_source)) {
     sub_mat_theo <- matrix_source
   } else if (file.exists(matrix_source)) {
     sub_mat_theo <- read_matrix_file(matrix_source)
   } else {
-    # Dynamisches Laden aus Biostrings/pwalign
     data(list = matrix_source, package = "Biostrings", envir = environment())
     sub_mat_theo <- get(matrix_source)
   }
@@ -534,10 +513,13 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   p <- ggplot(df_comp, aes(x = Theoretical, y = Observed)) +
     geom_point(alpha = 0.5, color = "dodgerblue4") +
     geom_smooth(method = "lm", color = "firebrick", linetype = "dashed", formula = y ~ x) +
-    labs(title = paste("Validation:", if(is.matrix(matrix_source)) "Manual" else matrix_source),
-         subtitle = paste("Pearson R =", round(correlation, 4)),
-         x = "Theoretical Log-Odds (Matrix)",
-         y = "Empirical Log-Odds (MSA)") +
+    labs(
+      title = paste("Korrelation zwischen Zielhäufigkeiten und der Matrix:",
+                    if (is.matrix(matrix_source)) "Manuell" else matrix_source),
+      subtitle = paste("Pearson-Korrelation R =", round(correlation, 4)),
+      x = "Theoretische Log-Odds (PAM70-Matrix)",
+      y = "Empirische Log-Odds (aus MSA)"
+    ) +
     theme_minimal()
   
   return(list(correlation = correlation, plot = p, q_ij = q_ij_obs))
@@ -546,7 +528,7 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
 # ==== 7.  Kompakter Cross-Check Workflow (BLOSUM90 Beispiel) ====
 
 library(msa)
-# 1. MSA für BLOSUM90 on-the-fly erstellen
+# 1. MSA für BLOSUM90 (kopiert aus MSA R files)
 # Top 30 IDs aus BLOSUM90 BLAST Ergebnissen
 top30_b90_ids <- head(blast_data_90$Accession_ID, 30)
 
@@ -559,19 +541,27 @@ top30_b90_seqs <- db_seqs[top30_b90_ids]
 msa_b90 <- msa(top30_b90_seqs, method = "ClustalW", substitutionMatrix = "blosum")
 msa_pam70 <- readRDS("Results_MultibleSequenceAlign/msa_result.rds")
 
-# 2. Kreuz-Validierung
-# MSA(B90) gegen Matrix(B90)
+# 2. Kreuz-Validierung MSA(B90)
+# B90
 val_b90_self <- validate_substitution_matrix(msa_b90, "Data/BLOSUM90.txt")
+# B80
+val_b90_vs_B80 <- validate_substitution_matrix(msa_b90, "BLOSUM80")
+# B62
+val_b90_vs_B62 <- validate_substitution_matrix(msa_b90, "BLOSUM62")
+# P70
+val_b90_vs_pam70 <- validate_substitution_matrix(msa_b90, "PAM70")
+# P30
+val_b90_vs_pam30 <- validate_substitution_matrix(msa_b90, "PAM30")
 
-# MSA(B90) gegen Matrix(PAM70)
-val_b90_vs_pam <- validate_substitution_matrix(msa_b90, "PAM70")
-
-print(val_b90_self$plot)
-print(val_b90_vs_pam$plot)
+val_b90_self$plot
+val_b90_vs_pam70$plot
 
 message("Ergebnis des Cross-Checks (MSA auf Basis von BLOSUM90):",
         "\nKorrelation mit BLOSUM90 Matrix: ", round(val_b90_self$correlation, 4),
-        "\nKorrelation mit PAM70 Matrix:    ", round(val_b90_vs_pam$correlation, 4))
+        "\nKorrelation mit BLOSUM80 Matrix:    ", round(val_b90_vs_B80$correlation, 4),
+        "\nKorrelation mit BLOSUM62 Matrix: ", round(val_b90_vs_B62$correlation, 4),
+        "\nKorrelation mit PAM70 Matrix:    ", round(val_b90_vs_pam70$correlation, 4),
+        "\nKorrelation mit PAM30 Matrix:    ", round(val_b90_vs_pam30$correlation, 4))
 
 
 # ==== 8.  Globale Analyse (Gesamter Datensatz) ====
@@ -602,7 +592,6 @@ msa_all <- msa(all_seqs, method = "ClustalW", substitutionMatrix = "blosum")
 val_global_70 <- validate_substitution_matrix(msa_all, "PAM70")
 val_global_90 <- validate_substitution_matrix(msa_all, "Data/BLOSUM90.txt")
 print(val_global_70$plot)
-print(val_global_90$plot)
 
 # Weitere
 val_global_80 <- validate_substitution_matrix(msa_all, "BLOSUM80")
@@ -625,3 +614,11 @@ message(
   "\nKorrelation mit BLOSUM62 Matrix:    ", round(val_global_62$correlation, 4)
 )
 
+val_global_70$plot
+ggsave(
+  filename = "R_N=501_BLOSUMvsPAM.pdf", 
+  plot = val_global_70$plot,
+  width = 7,
+  height = 5,
+  device = "pdf"
+)
