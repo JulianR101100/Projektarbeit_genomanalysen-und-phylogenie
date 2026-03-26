@@ -1,6 +1,7 @@
 # Library and Settings ----
 rm(list = ls())
 library(ggplot2)
+library(ggrepel) # für Plot Häufigkeiten AS markieren
 library(tidyr)
 library("tidyverse")
 library(Biostrings)
@@ -506,25 +507,71 @@ validate_substitution_matrix <- function(msa_obj, matrix_source = "PAM70") {
   theo_vector <- sub_mat_theo[common_aa, common_aa][lower.tri(sub_mat_theo[common_aa, common_aa], diag = TRUE)]
   
   valid_idx <- !is.na(obs_vector) & !is.na(theo_vector)
-  df_comp <- data.frame(Observed = obs_vector[valid_idx], Theoretical = theo_vector[valid_idx])
+  
+  # JR: Erstelle Labels für die Paare, um Ausreißer identifizieren zu können
+  pair_labels <- outer(common_aa, common_aa, function(i, j) paste0(i, "-", j))[lower.tri(log_odds_obs[common_aa, common_aa], diag = TRUE)]
+  
+  df_comp <- data.frame(
+    Pair = pair_labels[valid_idx],
+    Observed = obs_vector[valid_idx], 
+    Theoretical = theo_vector[valid_idx],
+    stringsAsFactors = FALSE
+  )
   
   correlation <- cor(df_comp$Observed, df_comp$Theoretical)
   
-  p <- ggplot(df_comp, aes(x = Theoretical, y = Observed)) +
+  p <- ggplot(df_comp, aes(x = Theoretical, y = Observed, label = Pair)) +
     geom_point(alpha = 0.5, color = "dodgerblue4") +
     geom_smooth(method = "lm", color = "firebrick", linetype = "dashed", formula = y ~ x) +
     labs(
       title = paste("Korrelation zwischen Zielhäufigkeiten und der Matrix:",
                     if (is.matrix(matrix_source)) "Manuell" else matrix_source),
       subtitle = paste("Pearson-Korrelation R =", round(correlation, 4)),
-      x = "Theoretische Log-Odds (PAM70-Matrix)",
+      x = "Theoretische Log-Odds (Matrix)",
       y = "Empirische Log-Odds (aus MSA)"
     ) +
     theme_minimal()
   
-  return(list(correlation = correlation, plot = p, q_ij = q_ij_obs))
+  return(list(correlation = correlation, plot = p, q_ij = q_ij_obs, df_comp = df_comp))
 }
 
+#' Identifiziert Aminosäure-Paare, die am stärksten von der theoretischen Erwartung abweichen.
+identify_matrix_outliers <- function(validation_result, n = 5) {
+  df <- validation_result$df_comp
+  # Linear Modell wie in validate_substitution_matrix
+  fit <- lm(Observed ~ Theoretical, data = df)
+  df$Residual <- residuals(fit)
+  outliers <- df[order(abs(df$Residual), decreasing = TRUE), ][1:n, ]
+  return(outliers)
+}
+
+#' KI Unterstützt geschireben:
+#' Gleicht die Ausreißer mit den Hintergrundfrequenzen (Compositional Check) ab.
+cross_check_composition <- function(outliers, comp_data) {
+  # Extrahiere beteiligte Aminosäuren aus den Paaren (z.B. "A-R" -> "A", "R")
+  involved_aa <- unique(unlist(strsplit(outliers$Pair, "-")))
+
+  # JR: Vereinheitliche Spaltennamen (Base R ist hier robuster gegen NSE-Fehler)
+  if ("Global_Observed" %in% colnames(comp_data)) {
+    colnames(comp_data)[colnames(comp_data) == "Global_Observed"] <- "Observed"
+  }
+
+  # JR: Sicherstellen, dass Diff existiert
+  if (!"Diff" %in% colnames(comp_data) && all(c("Observed", "Standard") %in% colnames(comp_data))) {
+    comp_data$Diff <- comp_data$Observed - comp_data$Standard
+  }
+
+  # Suche diese in den comp_data
+  check <- comp_data %>% 
+    filter(AA %in% involved_aa) %>%
+    select(any_of(c("AA", "Observed", "Standard", "Diff")))
+
+  if (nrow(check) > 0 && "Diff" %in% colnames(check)) {
+    check <- check %>% mutate(Status = ifelse(abs(Diff) > 0.05, "Auffällig", "Normal"))
+  }
+
+  return(check)
+}
 # ==== 7.  Kompakter Cross-Check Workflow (BLOSUM90 Beispiel) ====
 
 library(msa)
@@ -568,7 +615,7 @@ message("Ergebnis des Cross-Checks (MSA auf Basis von BLOSUM90):",
 
 message("Starte globale Analyse für alle BLAST-Treffer (~500 Sequenzen)...")
 
-# 1. Alle Treffer annotieren (E-Value <= 1e-10 für biologische Relevanz)
+# 1. Alle Treffer annotieren (E-Value <= 1e-10 biologische Relevanz)
 all_hits_annotated <- annotate_blast_results(
   blast_results = blast_data_70,
   e_value_threshold = 1e-10, 
@@ -614,11 +661,44 @@ message(
   "\nKorrelation mit BLOSUM62 Matrix:    ", round(val_global_62$correlation, 4)
 )
 
-val_global_70$plot
+outliers_pam70 <- identify_matrix_outliers(val_global_70, n = 10)
+composition_outliers <- cross_check_composition(outliers_pam70, comp_check_global)
+outliers_pam90 <- identify_matrix_outliers(val_global_90, n = 5)
+outliers_pam70
+composition_outliers
+outliers_pam90
+
+# 7. Visualisierung & Speichern des finalen Plots mit markierten Ausreißern
+# KI: Ich wusste nicht wie ggrepel genau funktioniert. Code mit diesem Package wurde von GEMINI3 geschrieben
+p_final <- val_global_70$plot + 
+  # Highlight: Die Ausreißer-Punkte farblich hervorheben
+  geom_point(data = outliers_pam70, color = "firebrick", size = 2.5) +
+  # Labels: Mit Linien (Segments) zu den hervorgehobenen Punkten
+  geom_text_repel(
+    data = outliers_pam70, 
+    aes(label = Pair),
+    box.padding = 0.8, 
+    point.padding = 0.3,
+    segment.color = "firebrick",
+    segment.alpha = 0.8,
+    segment.size = 0.5,
+    color = "black",
+    fontface = "bold",
+    size = 4,
+    min.segment.length = 0 # Linien immer zeichnen, auch wenn nah dran
+  ) +
+  # Titel etwas "wissenschaftlicher"
+  labs(subtitle = paste0("Pearson R = ", round(val_global_70$correlation, 4), 
+                         " | Top 5 Ausreißer (Residuen) markiert"))
+
+# Plot anzeigen
+p_final
+
+# Speichern (mit etwas höherer Auflösung/Größe für Publikation)
 ggsave(
-  filename = "R_N=501_BLOSUMvsPAM.pdf", 
-  plot = val_global_70$plot,
-  width = 7,
-  height = 5,
+  filename = "Results_BLAST/TSR3_Matrix_Validation_Final.pdf", 
+  plot = p_final,
+  width = 8,
+  height = 6,
   device = "pdf"
 )

@@ -2,7 +2,7 @@
 
 % Literatur und Zitieren
 \usepackage[backend=biber, style=ieee, citestyle=ieee]{biblatex}
-\addbibresource{Literatur_GuP.bib} % Der Name der Datei, die du in Overleaf erstellt hast
+\addbibresource{Literatur_GuP_Blast.bib}
 
 % --- UNIVERSAL PREAMBLE BLOCK ---
 \usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
@@ -24,9 +24,9 @@
 \usepackage{subcaption} % Für MSA Plots nebeneinander
 \usepackage{amsmath}
 \usepackage{amsfonts}
-\usepackage{amssymb} % Hinzugefügt zur Fehlerbehebung
+\usepackage{amssymb} %  Fehlerbehebung
 \usepackage{booktabs} % Hinzugefügt für professionelle wissenschaftliche Tabellen
-\usepackage{hyperref}
+\usepackage[hidelinks]{hyperref} % Links
 % Tabellenlayout
 \usepackage{siunitx}       % saubere Zahlenformatierung
 \usepackage{colortbl}      % Zellfarben
@@ -46,15 +46,19 @@
 \newcommand{\poscell}{\cellcolor{pos}}
 \newcommand{\negcell}{\cellcolor{neg}}
 
-\usepackage{minted} % Für R Code im Anhang
-
-\title{Projektarbeit Genomik und Phylogenie\\ \large Abschnitt: BLAST-Analyse und Matrix-Evaluation}
-\author{Projektarbeit GuP}
+\begin{document}
+\title{Projektarbeit Genomik und Phylogenie}
+\author{Julian Rasp, Raphael Ortner, Johann Vogel}
 \date{\today}
 
-\begin{document}
 \maketitle
+\setcounter{page}{0}
+\thispagestyle{empty}
+\vspace{50}
+\tableofcontents
 
+
+\newpage
 \section{Einleitung}
 \textit{[Hier folgt die Einleitung -> Raphi]}
 
@@ -147,7 +151,9 @@ negative Werte eine geringere (Rot).
 \label{Methode_Zielhäufigkeiten}
 Zur finalen Differenzierung zwischen den Modellen PAM70 und BLOSUM90 wurden die empirischen Zielhäufigkeiten mittels Pearson-Korrelation ($R$) evaluiert. Die Analyse wurde sowohl für die Top-30-Hits als auch für den globalen Datensatz (501 Hits) durchgeführt. Um einen methodischen Zirkelschluss bei der Evaluierung der PAM-Hypothese zu vermeiden, wurden das zugrunde liegende BLAST-Suchverfahren sowie das Multiple Sequenzalignment zum Vergeleich unter einer BLOSUM-Hypothese generiert.
 
-Wie in Tabelle \ref{tab:korrelation} ersichtlich, ergaben für die Top-30-Orthologe die auf zeitkontinuierlichen Markov-Prozessen basierenden PAM-Matrizen die höchsten Korrelationswerte (PAM30: $R=0{,}856$; PAM70: $R=0{,}855$). Sie übertrafen damit die blockbasierten Modelle (z.\,B. BLOSUM90: $R=0{,}831$). Bei Ausweitung der Analyse auf den global diverseren Datensatz (501 Hits) zeigte sich eine signifikante Verschiebung der Robustheit: Während das Kurzzeit-Modell PAM30 an Validität verlor ($R=0{,}859$), kristallisierte sich PAM70 mit einer Korrelation von $R=0{,}876$ als globaler Champion heraus. Es bildete die Aminosäuresubstitutionen von TSR3 auch über größere taxonomische Distanzen hinweg genauer ab als das stärkste BLOSUM-Pendant (BLOSUM90: $R=0{,}857$).
+Wie in Tabelle \ref{tab:korrelation} ersichtlich, ergaben für die Top-30-Orthologe unter PAM-Matrizen die höchsten Korrelationswerte (PAM30: $R=0{,}856$; PAM70: $R=0{,}855$). Sie übertrafen damit die BLOSUM Modelle (z.\,B. BLOSUM90: $R=0{,}831$). Bei Ausweitung der Analyse auf den globalen Datensatz (501 Hits) zeigte sich eine signifikante Verschiebung der Robustheit: Während das Kurzzeit-Modell PAM30 an Validität verlor ($R=0{,}859$), kristallisierte sich PAM70 mit einer Korrelation von $R=0{,}877$ heraus. Es bildete die Aminosäuresubstitutionen von TSR3 auch über größere Distanzen hinweg genauer ab als das stärkste BLOSUM-Pendant (BLOSUM90: $R=0{,}857$). 
+
+Die Korrelationsanalyse des PAM70-Modells (dargestellt in Abbildung \ref{fig:zielhaeufigkeit}) offenbart die spezifischen, vom globalen Trend abweichende Substitutionsmuster. Bei den dargestellten Top-5 am meisten abweichenden Austauschen weisen spezifische Tyrosin-Kombinationen (Y-N, Y-A, Y-T) stark negative Residuen auf (Abweichungen < -3). Sie treten im MSA-Datensatz deutlich seltener auf, als es die theoretischen Log-Odds erwarten lassen. Andererseits werden theoretisch extrem stark bestrafte, radikale Substitutionen wie Y-P und W-E (theoretische Log-Odds von -9 respektive -11) in der evolutionären Realität unerwartet häufig toleriert, was sich in starken positiven Residuen (> +3,2) äußert. Ein Abgleich mit den Hintergrundfrequenzen bestätigte, dass diese Anomalien nicht auf eine verzerrte globale Aminosäurezusammensetzung des Proteins zurückzuführen sind. So erreichte die Differenz zwischen den beobachteten Frequenzen im TSR3-Alignment und dem statistischen Standardmodell für alle beteiligten Aminosäuren maximal 3,5\% (für Glutaminsäure).
 
 \begin{table}[htbp]
     \centering
@@ -170,13 +176,13 @@ Wie in Tabelle \ref{tab:korrelation} ersichtlich, ergaben für die Top-30-Orthol
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=1\textwidth]{BLAST_Figures/R_N=501_BLOSUMvsPAM.pdf}
-  \caption{Korrelation der empirischen Log-Odds-Scores ($S^{obs}$) des globalen Datensatzes unter $H_{BLOSUM}$ mit den theoretischen Log-Odds ($S^{theo}$) der PAM70-Matrix. Die Streuung um die Regressionsgerade visualisiert die Präzision des gewählten Evolutionsmodells.}
+  \includegraphics[width=1\textwidth]{BLAST_Figures/Correlation_AS-Marked.pdf}
+  \caption{Korrelation der empirischen Log-Odds-Scores ($S^{obs}$) des globalen Datensatzes unter $H_{BLOSUM}$ mit den theoretischen Log-Odds ($S^{theo}$) der PAM70-Matrix. Die 5 größten Abweichungen sind mit dem Aminosäure Austausch Beschriftet.}
   \label{fig:zielhaeufigkeit}
 \end{figure}
 
 
-
+\newpage
 \section{Diskussion}
 
 \subsection{Interpretation der Modellevaluation: Skalierung und Evolutionsmodell}
@@ -195,7 +201,7 @@ Die empirische Evaluation der Substitutionsmatrizen wirft eine grundsätzliche w
 
 Dieser Prämisse muss auf Basis der vorliegenden Datenlage widersprochen werden. Zwar ist es korrekt, dass evolutionäre Modelle grundsätzlich mathematische Approximationen darstellen und keine absolute biologische "Wahrheit" abbilden können. Dennoch zeigen die empirisch erhobenen Metriken, insbesondere die Diskrepanz in der relativen Entropie und die klaren Differenzen in der Korrelation der Zielhäufigkeiten, dass stochastische Verfahren sehr wohl in der Lage sind, eine quantifizierbare Hierarchisierung der Matrizen vorzunehmen. Im Kontext der vorliegenden TSR3-Daten ist die Wahl von BLOSUM62 im Vergleich zu PAM70 empirisch schlichtweg suboptimal und mathematisch als schlechtere Passform zu bewerten. Ein binäres "Richtig" oder "Falsch" mag absolut gesehen nicht existieren, die Kategorisierung in "Signifikant besser" oder "Schlechter" ist jedoch zweifellos möglich und durch die Daten belegbar.
 
-Dieser Befund erzwingt eine kritische Auseinandersetzung mit der gängigen Praxis in weiten Teilen der biologischen Fachliteratur. Allzu oft wird BLAST als algorithmische "Black Box" betrachtet, bei der Standardeinstellungen (wie BLOSUM62) unreflektiert übernommen werden. Als Rechtfertigung dient hierbei häufig die pragmatische Annahme, die Wahl der Matrix verändere die resultierenden BLAST-Treffer im Zweifelsfall ohnehin nicht signifikant. Zum eine lässt sich so eine Implikation im Vorhinein einer Analyse nicht belegen, zum Anderen darf sie auch nicht als akademische Entschuldigung dafür dienen, sich der Evaluierung der Methodik zu entziehen. Die vorliegenden Daten widerlegen zudem jene Annahme: Selbst bei einem hochkonservierten Protein wie dem TSR3 führt der Wechsel von der Standardmatrix BLOSUM62 zu PAM70 bei der Hälfte der Top-30-Spezies (15 von 30) zu einer relevanten Rangverschiebung. So rückt beispielsweise das Pferd (\textit{Equus caballus}) von Rang 20 unter BLOSUM62 auf Platz 13 unter PAM70 vor. Für mögliche nachgelagerte Sequenzanalysen (z.\,B. der Distanz Mensch--Pferd) stellt eine solche Verschiebung einen gravierenden Unterschied dar. \\
+Dieser Befund erzwingt eine kritische Auseinandersetzung mit der gängigen Praxis in weiten Teilen der biologischen Fachliteratur. Allzu oft wird BLAST als algorithmische "Black Box" betrachtet, bei der Standardeinstellungen (wie BLOSUM62) unreflektiert übernommen werden. Als Rechtfertigung dient hierbei häufig die pragmatische Annahme, die Wahl der Matrix verändere die resultierenden BLAST-Treffer im Zweifelsfall ohnehin nicht signifikant. Zum eine lässt sich so eine Implikation im Vorhinein einer Analyse nicht belegen, zum Anderen darf sie auch nicht als akademische Entschuldigung dafür dienen, sich der Evaluierung der Methodik zu entziehen. Die vorliegenden Daten widersprechen zudem jener Annahme: Selbst bei einem hochkonservierten Protein wie dem TSR3 führt der Wechsel von der Standardmatrix BLOSUM62 zu PAM70 bei der Hälfte der Top-30-Spezies (15 von 30) zu einer relevanten Rangverschiebung. So rückt beispielsweise das Pferd (\textit{Equus caballus}) von Rang 20 unter BLOSUM62 auf Platz 13 unter PAM70 vor. Für mögliche nachgelagerte Sequenzanalysen (z.\,B. der Distanz Mensch--Pferd) stellt eine solche Verschiebung einen gravierenden Unterschied dar. \\
 Die Wahl der Matrix ist damit keine triviale Formalität, sondern definiert das stochastische Fundament, auf dem sämtliche Folgeanalysen -- vom Multiplen Sequenzalignment bis zur Berechnung phylogenetischer Distanzmatrizen -- aufbauen. Eine ungenaue oder unpassende Basis in der initialen Homologiesuche kompromittiert zwangsläufig die Trennschärfe, die Reproduzierbarkeit und damit letztlich die wissenschaftliche Aussagekraft der daraus erhobenen phylogenetischen Daten.
 
 \vspace{50}
