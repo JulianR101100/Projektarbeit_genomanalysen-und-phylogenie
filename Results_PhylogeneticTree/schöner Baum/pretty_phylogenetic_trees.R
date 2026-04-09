@@ -37,6 +37,7 @@ for (i in seq_len(nrow(wds))) {
 }
 rm(wds, i)
 
+#großteil der "Verschönerungsfunktionen" mit Hilfe von Ki erstellt
 
 # =========================
 # 1) MSA laden + Distanz
