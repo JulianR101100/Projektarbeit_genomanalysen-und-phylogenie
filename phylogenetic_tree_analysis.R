@@ -148,7 +148,7 @@ check_ultrametric_property <- function(dist_matrix, tol = 1e-12) {
 }
 
 
-# ======== 2.3. Ultrametric checks for multiple tolerances ========
+# ======== 2.3. Ultrametric checks for multiple tolerances (teilweise mit KI erstellt) ========
 
 dist_msa_sq <- as.dist(dist_matrix_sq)
 
@@ -373,7 +373,7 @@ check_four_point_condition <- function(dist_matrix, tol=1e-12) {
 
 #Four-Point-Condition prüfen für dist_matrix_sq
 
-# Four-Point-Condition checks for multiple tolerances
+# Four-Point-Condition checks for multiple tolerances (teilweise mit Ki erstellt)
 
 tolerances_4pt <- c(0.01, 0.02, 0.04, 0.06, 0.1, 0.2)
 out_file <- "Results_PhylogeneticTree/Ultrametric_Check.txt"
@@ -395,7 +395,7 @@ for (tol in tolerances_4pt) {
   cat("Additivität: ", Four_Point_Condition_check$additive, "\n", file = out_file, append = TRUE, sep = "")
   cat("Verletzungen: ", Four_Point_Condition_check$violations, "\n", file = out_file, append = TRUE, sep = "")
   
-  # Optional aber sehr hilfreich: Prozent
+  # Optional aber hilfreich: Prozent
   viol_rate <- 100 * Four_Point_Condition_check$violations / Four_Point_Condition_check$tests
   cat("Violation rate: ", round(viol_rate, 2), "%\n\n", file = out_file, append = TRUE, sep = "")
   
@@ -429,7 +429,7 @@ edgelabels(round(nj_tree$edge.length,2),
 dev.off()
 message("NJ_tree gespeichert: Results_PhylogeneticTree/NJ_tree.pdf")
 
-#========= 7. Robustheit NJ Tree und correlation between the distance matrix and the cophenetic distances of the individual trees  =========
+#========= 7. Robustheit NJ Tree und correlation between the distance matrix and the cophenetic distances of the individual trees (teilwise mit KI erstellt) =========
 
 robustness_nj <- calculate_robustness(nj_tree, dist_matrix_sq, 1/2)
 
