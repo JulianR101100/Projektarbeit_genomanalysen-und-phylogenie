@@ -1,14 +1,16 @@
 # Wissenschaftlicher Abschlussbericht: Multiple Sequence Alignment (MSA) von TSR3
 
+Der folgende Bericht dient als zusammenfassungen der Ergebnisse und wurde **mit KI erstellt** - *jedoch nicht inhatlich sondern nur als schnelle zusammenfassung*. Dazu wurden die Ergebnisse und die Auswertung bei fortschritten in der Analyse übergeben und damit immer ein aktuelle Zusammenfassung des projektstands erstellt.
+
 ## 1. Methodik
 *   **Sequenzauswahl:** Top 30 homologe Sequenzen (identifiziert via BLASTp, PAM70 Matrix).
-*   **Algorithmus:** ClustalW (Progressives Alignment).
+*   **Algorithmus:** ClustalW (Progressives Alignment). Beschränkugn auf PAM Matrix -> vgl ergebnisse aus Blast.R zu geeigeneten Substitutionsmatrix
 *   **Statistische Auswertung:** Quantitative Spaltenanalyse der Aminosäure-Identität (Konservierung) und Gap-Frequenz in R.
 
 ## 2. Globale Stochastische Ergebnisse
 Die Auswertung des gesamten Alignments lieferte folgende Durchschnittswerte:
-*   **Mittlere globale Konservierung ($\bar{C}_{\text{global}}$):** 72,37 %
-*   **Globale Gap-Rate ($\bar{f}_{\text{gap}}$):** 19,25 %
+*   **Mittlere globale Konservierung ($\bar{C}_{\text{global}}$):** 72.26 %
+*   **Globale Gap-Rate ($\bar{f}_{\text{gap}}$):** 17.99 %
 
 Diese Werte bestätigen eine generell hohe Homologie, zeigen aber auch eine signifikante Variabilität in bestimmten Abschnitten.
 

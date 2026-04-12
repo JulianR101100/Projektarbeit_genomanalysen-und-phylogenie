@@ -1,5 +1,7 @@
 # BLAST Analyse Bericht
 
+Der folgende Bericht dient als zusammenfassungen der Ergebnisse und wurde **mit KI erstellt** - *jedoch nicht inhatlich sondern nur als schnelle zusammenfassung*. Dazu wurden die Ergebnisse und die Auswertung bei fortschritten in der Analyse übergeben und damit immer ein aktuelle Zusammenfassung des projektstands erstellt.
+
 ## 1. Detaillierte Analyse des Proteins & der Annotation
 
 ### Identität und Funktion

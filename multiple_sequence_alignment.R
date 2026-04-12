@@ -144,6 +144,8 @@ message(sprintf("Analyse abgeschlossen: Mittlere Konservierung %.2f%%, Mittlere 
 
 message("Mappe UniProt-Domänen der humanen Sequenz auf Alignment-Positionen...")
 
+# Mit KI unterstützung geschrieben
+
 # 1. Humane Sequenz im Alignment finden
 human_idx <- grep("Homo_sapiens", names(plot_seqs))
 if(length(human_idx) == 0) {
